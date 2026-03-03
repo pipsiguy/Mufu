@@ -1712,6 +1712,19 @@ function styleCloneTable(tbl) {
     if (tds[0]) { tds[0].style.borderRadius = '8px 0 0 8px'; tds[0].style.paddingLeft = '12px'; }
     if (tds[tds.length-1]) tds[tds.length-1].style.borderRadius = '0 8px 8px 0';
   });
+  tbl.querySelectorAll('tbody tr.totals-row td').forEach(td => {
+    td.style.background = 'transparent';
+    td.style.borderTop = '1px solid #d4d8e1';
+    td.style.paddingTop = '8px';
+    td.style.fontWeight = '700';
+    td.style.color = '#1fa855';
+    td.style.textAlign = 'right';
+    td.style.fontSize = '13px';
+  });
+  tbl.querySelectorAll('tbody tr.totals-row td:first-child').forEach(td => {
+    td.style.color = '#6b7194';
+    td.style.textAlign = 'left';
+  });
   tbl.querySelectorAll('tfoot td').forEach(td => {
     td.style.cssText = 'border-top:1px solid #d4d8e1;padding-top:8px;font-weight:700;color:#1fa855;text-align:right;font-size:13px;';
   });
