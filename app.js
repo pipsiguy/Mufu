@@ -1577,11 +1577,12 @@ function buildScreenshotClone(qrText) {
   cohSection.appendChild(cohRow);
   wrap.appendChild(cohSection);
 
-  // Clone hours table — English title
+  // Prepare hours section (append near bottom, above QR)
+  const hoursSection = document.createElement('div');
   const hoursTitle = document.createElement('div');
   hoursTitle.style.cssText = 'font-size:13px;font-weight:600;color:#6b7194;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;';
   hoursTitle.textContent = tEn('employeeHours');
-  wrap.appendChild(hoursTitle);
+  hoursSection.appendChild(hoursTitle);
 
   const hoursClone = document.getElementById('hours-table').cloneNode(true);
   forceEnglishClone(hoursClone);
@@ -1598,7 +1599,7 @@ function buildScreenshotClone(qrText) {
     inp.parentNode.replaceChild(span, inp);
   });
   hoursClone.querySelectorAll('.emp-check-cell').forEach(el => el.remove());
-  wrap.appendChild(hoursClone);
+  hoursSection.appendChild(hoursClone);
 
   // Clone invoices table (if vendors exist) — English title
   if (vendors.length > 0) {
@@ -1655,6 +1656,9 @@ function buildScreenshotClone(qrText) {
     notesBox.textContent = notesEl.value.trim();
     wrap.appendChild(notesBox);
   }
+
+  // Employee hours goes near the bottom of snapshot
+  wrap.appendChild(hoursSection);
 
   // ── QR code in its own dedicated section — English label ──
   {
