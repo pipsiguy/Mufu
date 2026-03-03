@@ -219,7 +219,7 @@ table {
   font-size: 0.88rem;
 }
 
-/* Align first & last columns across Sales, COH-before, Invoices, Expenses */
+/* Align first column across ALL data tables */
 #sales-table th:first-child,
 #sales-table td:first-child,
 #coh-before-table th:first-child,
@@ -227,12 +227,15 @@ table {
 #invoices-table th:first-child,
 #invoices-table td:first-child,
 #expenses-table th:first-child,
-#expenses-table td:first-child {
+#expenses-table td:first-child,
+#hours-table th:first-child,
+#hours-table td:first-child {
   width: 120px;
   min-width: 120px;
   max-width: 120px;
 }
 
+/* Last column for 9-col tables (Sales, COH, Invoices, Expenses) */
 #sales-table th:last-child,
 #sales-table td:last-child,
 #coh-before-table th:last-child,
@@ -241,6 +244,16 @@ table {
 #invoices-table td:last-child,
 #expenses-table th:last-child,
 #expenses-table td:last-child {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+
+/* Hours table: Total Hrs + Salary columns at end */
+#hours-table th:nth-last-child(1),
+#hours-table td:nth-last-child(1),
+#hours-table th:nth-last-child(2),
+#hours-table td:nth-last-child(2) {
   width: 80px;
   min-width: 80px;
   max-width: 80px;
@@ -344,6 +357,7 @@ tbody tr td:last-child {
 /* ── Hours table ── */
 .hours-table {
   width: 100%;
+  min-width: 620px;
   border-collapse: separate;
   border-spacing: 0 6px;
   font-size: 0.88rem;
@@ -358,7 +372,7 @@ tbody tr td:last-child {
   text-align: center;
 }
 
-.hours-table thead th:first-child { text-align: left; min-width: 90px; }
+.hours-table thead th:first-child { text-align: left; }
 
 .hours-table tbody tr td {
   background: var(--surface2);
