@@ -49,30 +49,7 @@
   <input type="date" id="week-start" />
 </div>
 
-<!-- ══════════════════════════════════════════
-     Cash on Hand
-══════════════════════════════════════════ -->
-<div class="card cash-on-hand-card" id="cash-on-hand-card">
-  <div class="card-title">
-    <i data-lucide="banknote" style="width:14px;height:14px;"></i>
-    <span data-i18n="cashOnHand">Cash on Hand</span>
-  </div>
-  <div class="coh-row">
-    <label class="coh-label" data-i18n="startingCash">Starting Cash</label>
-    <div class="coh-input-wrap">
-      <span class="coh-dollar">$</span>
-      <input class="inp coh-inp" type="number" inputmode="decimal" min="0" step="0.01"
-        placeholder="0.00"
-        data-key="coh_start"
-        id="coh-start" />
-    </div>
-    <button class="btn-auto-fill" id="btn-auto-fill-coh" title="Auto-fill from previous week">
-      <i data-lucide="wand-2" style="width:14px;height:14px;"></i>
-      <span data-i18n="autoFill">Auto-fill</span>
-    </button>
-  </div>
-  <div class="coh-hint" id="coh-hint" data-i18n="cohHint">Tip: Use auto-fill to pull from the most recent previous week, or enter manually.</div>
-</div>
+<!-- Cash on Hand card removed – COH is now inline inside sales & expenses tables -->
 
 <!-- ══════════════════════════════════════════
      Action Buttons
@@ -123,6 +100,41 @@
       <tbody id="sales-body">
         <!-- rows (Sales, Cash, CC, DD) injected by JS -->
       </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Cash on Hand before calculation
+══════════════════════════════════════════ -->
+<div class="card" id="coh-before-card">
+  <div class="card-title">
+    <i data-lucide="banknote" style="width:14px;height:14px;"></i>
+    <span data-i18n="cohBeforeCalc">Cash on Hand before calculation</span>
+  </div>
+  <div class="coh-row">
+    <label class="coh-label" data-i18n="startingCash">Starting Cash</label>
+    <div class="coh-input-wrap">
+      <span class="coh-dollar">$</span>
+      <input class="inp coh-inp" type="number" inputmode="decimal" min="0" step="0.01"
+        placeholder="0.00"
+        data-key="coh_start"
+        id="coh-start" />
+    </div>
+    <button class="btn-auto-fill" id="btn-auto-fill-coh" title="Auto-fill from previous week">
+      <i data-lucide="wand-2" style="width:14px;height:14px;"></i>
+      <span data-i18n="autoFill">Auto-fill</span>
+    </button>
+  </div>
+  <div class="table-wrap">
+    <table id="coh-before-table">
+      <thead>
+        <tr id="coh-before-head-row">
+          <th></th>
+          <!-- day columns injected by JS -->
+        </tr>
+      </thead>
+      <tbody id="coh-before-body"></tbody>
     </table>
   </div>
 </div>

@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════
-   Mufu – app.js
+   EasyDailyReport – app.js
    QR, LocalStorage, i18n, and snapshot logic
 ══════════════════════════════════════════ */
 
@@ -9,8 +9,8 @@
 let employees = [];  // dynamic, loaded from storage
 let currentWeekDate = '';  // tracks which week is displayed, for save-on-switch
 let storeName = 'Store Name';  // editable, saved to meta
-const WEEK_PREFIX = 'mufu_week_';   // per-week keys: mufu_week_2026-02-23
-const META_KEY    = 'mufu_meta';    // stores { lang, lastWeek, employees }
+const WEEK_PREFIX = 'edr_week_';    // per-week keys: edr_week_2026-02-23
+const META_KEY    = 'edr_meta';     // stores { lang, lastWeek, employees }
 const QR_SIZE = 180;
 const QR_RENDER_DELAY_MS = 300;
 const QR_MAX_BYTES = 2900;  // QR capacity with EC Level L; maxJsonBytes() = ~2175 usable bytes
@@ -85,6 +85,7 @@ const I18N = {
     csvHint: 'Download this week as a .csv file for Excel, Google Sheets, or Numbers.',
     csvSaved: '📄 CSV exported!',
     cashOnHand: 'Cash on Hand',
+    cohBeforeCalc: 'Cash on Hand before calculation',
     startingCash: 'Starting Cash',
     autoFill: 'Auto-fill',
     cohHint: 'Tip: Use auto-fill to pull from the most recent previous week, or enter manually.',
@@ -157,6 +158,7 @@ const I18N = {
     csvHint: '将本周数据下载为 .csv 文件，可在 Excel、Google Sheets 或 Numbers 中打开。',
     csvSaved: '📄 CSV 已导出！',
     cashOnHand: '手头现金',
+    cohBeforeCalc: '计算前手头现金',
     startingCash: '期初现金',
     autoFill: '自动填充',
     cohHint: '提示：使用自动填充从最近的上一周提取，或手动输入。',
@@ -229,6 +231,7 @@ const I18N = {
     csvHint: 'Descargue esta semana como archivo .csv para Excel, Google Sheets o Numbers.',
     csvSaved: '📄 ¡CSV exportado!',
     cashOnHand: 'Efectivo Disponible',
+    cohBeforeCalc: 'Efectivo antes del cálculo',
     startingCash: 'Efectivo Inicial',
     autoFill: 'Auto-llenar',
     cohHint: 'Consejo: Use auto-llenar para traer datos de la semana anterior, o ingrese manualmente.',
@@ -264,7 +267,18 @@ function weekKey(dateStr) {
 }
 
 function getMeta() {
-  try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; }
+  try {
+    let data = localStorage.getItem(META_KEY);
+    // Migrate legacy key
+    if (!data) {
+      data = localStorage.getItem('mufu_meta');
+      if (data) {
+        localStorage.setItem(META_KEY, data);
+        localStorage.removeItem('mufu_meta');
+      }
+    }
+    return JSON.parse(data) || {};
+  }
   catch(e) { return {}; }
 }
 
@@ -281,7 +295,18 @@ function getSavedWeeks() {
       weeks.push(k.replace(WEEK_PREFIX, ''));
     }
   }
-  // Also migrate old mufu_v1 if present
+  // Also check for legacy prefixes and migrate
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('mufu_week_') && !weeks.includes(k.replace('mufu_week_', ''))) {
+      const dateStr = k.replace('mufu_week_', '');
+      // Migrate old key to new prefix
+      const data = localStorage.getItem(k);
+      localStorage.setItem(WEEK_PREFIX + dateStr, data);
+      localStorage.removeItem(k);
+      weeks.push(dateStr);
+    }
+  }
   return weeks.sort().reverse();
 }
 
@@ -319,9 +344,11 @@ function loadState() {
   }
   // Migrate old single-key storage
   try {
-    const old = JSON.parse(localStorage.getItem('mufu_v1'));
+    // Check both legacy key names
+    const old = JSON.parse(localStorage.getItem('edr_v1') || localStorage.getItem('mufu_v1'));
     if (old && old['__weekStart']) {
       localStorage.setItem(weekKey(old['__weekStart']), JSON.stringify(old));
+      localStorage.removeItem('edr_v1');
       localStorage.removeItem('mufu_v1');
       saveMeta({ lang: old['__lang'] || 'en', lastWeek: old['__weekStart'] });
       return old;
@@ -338,6 +365,7 @@ function clearForm() {
   document.querySelectorAll('[data-key]').forEach(el => { el.value = ''; });
   updateSalesTotals();
   updateHoursTotals();
+  updateCashOnHand();
 }
 
 function applyState(s) {
@@ -370,6 +398,7 @@ function applyState(s) {
   updateHoursTotals();
   updateInvoicesTotals();
   updateExpensesTotals();
+  updateCashOnHand();
   updateNotesCounter();
 }
 
@@ -498,6 +527,33 @@ function buildSalesTable() {
   totRow += `<td class="tot-cell tot-grand" id="grand-total">$0.00</td>`;
   totTr.innerHTML = totRow;
   tbody.appendChild(totTr);
+
+}
+
+/* ═══════════════════════════════════════════
+   BUILD CASH ON HAND BEFORE CALCULATION TABLE
+═══════════════════════════════════════════ */
+function buildCohBeforeTable() {
+  // Header
+  const headRow = document.getElementById('coh-before-head-row');
+  headRow.innerHTML = '<th></th>';
+  DAYS().forEach((_, i) => {
+    const th = document.createElement('th');
+    th.textContent = t('daysShort')[i];
+    headRow.appendChild(th);
+  });
+
+  // Single row — all 7 days are read-only display cells
+  const tbody = document.getElementById('coh-before-body');
+  tbody.innerHTML = '';
+  const tr = document.createElement('tr');
+  tr.className = 'coh-before-row';
+  let row = `<td class="row-label" data-i18n="cashOnHand">${t('cashOnHand')}</td>`;
+  DAYS().forEach((_, i) => {
+    row += `<td class="tot-cell" id="coh-before-${i}">$0.00</td>`;
+  });
+  tr.innerHTML = row;
+  tbody.appendChild(tr);
 }
 
 function updateDateLabels() {
@@ -920,6 +976,25 @@ function buildExpensesTable() {
   gtd.textContent = '$0.00';
   totRow.appendChild(gtd);
 
+  // ── Cash on Hand row (after expenses totals) ──
+  const tfoot = totRow.parentElement; // tfoot
+  // Remove any previous COH row to prevent duplicates on rebuild
+  tfoot.querySelectorAll('.coh-after-row').forEach(el => el.remove());
+  const cohExpTr = document.createElement('tr');
+  cohExpTr.className = 'coh-after-row';
+  cohExpTr.innerHTML = `<td class="row-label">${t('cashOnHand')}</td>`;
+  DAYS().forEach((_, i) => {
+    const td = document.createElement('td');
+    td.className = 'tot-cell';
+    td.id = `coh-after-${i}`;
+    td.textContent = '$0.00';
+    cohExpTr.appendChild(td);
+  });
+  const cohExpGt = document.createElement('td');
+  cohExpGt.textContent = '';
+  cohExpTr.appendChild(cohExpGt);
+  tfoot.appendChild(cohExpTr);
+
   renderExpenseActions();
 }
 
@@ -1064,31 +1139,33 @@ function removeExpense(ex) {
 /* ═══════════════════════════════════════════
    CASH ON HAND – auto-populate from previous week
 ═══════════════════════════════════════════ */
+
+/**
+ * Calculate the ending "Cash on Hand" for the last day of a saved week.
+ * Used to auto-fill day-1 of the following week.
+ */
 function calcEndingCash(weekData) {
   if (!weekData) return null;
   const startCash = parseFloat(weekData['coh_start']) || 0;
-  // Sum cash sales for the week
-  let cashIn = 0;
-  for (let i = 0; i < 7; i++) {
-    cashIn += parseFloat(weekData[`s_${i}_cash`]) || 0;
-  }
-  // Sum cash expenses for the week
-  let cashOut = 0;
   const expenses = weekData['__cashExpenses'] || [];
-  expenses.forEach(ex => {
-    for (let i = 0; i < 7; i++) {
-      cashOut += parseFloat(weekData[`exp_${ex}_${i}`]) || 0;
-    }
-  });
-  return startCash + cashIn - cashOut;
+
+  // Walk each day forward: cohBefore[0] = startCash, cohAfter[i] = cohBefore[i] - expDay[i], cohBefore[i+1] = cohAfter[i]
+  let cohBefore = startCash;
+  for (let i = 0; i < 7; i++) {
+    let dayExp = 0;
+    expenses.forEach(ex => {
+      dayExp += parseFloat(weekData[`exp_${ex}_${i}`]) || 0;
+    });
+    const cohAfter = cohBefore - dayExp;
+    cohBefore = cohAfter; // next day's "before" = this day's "after"
+  }
+  return cohBefore; // final day's "after"
 }
 
 function findPreviousWeekData(currentDateStr) {
   const weeks = getSavedWeeks(); // newest first
-  // Find weeks that are before the current week
   const prior = weeks.filter(w => w < currentDateStr);
   if (prior.length === 0) return null;
-  // Most recent previous week (prior is sorted newest-first)
   return loadWeekData(prior[0]);
 }
 
@@ -1104,6 +1181,7 @@ function autoFillCashOnHand() {
   if (ending !== null) {
     document.getElementById('coh-start').value = ending.toFixed(2);
     saveState();
+    updateCashOnHand();
     showToast(t('cohAutoFilled'));
   } else {
     showToast(t('cohNoPrevious'));
@@ -1111,7 +1189,6 @@ function autoFillCashOnHand() {
 }
 
 function tryAutoFillCashOnHand() {
-  // Only auto-fill if the field is currently empty
   const cohEl = document.getElementById('coh-start');
   if (cohEl && !cohEl.value) {
     const currentDate = document.getElementById('week-start').value;
@@ -1122,9 +1199,45 @@ function tryAutoFillCashOnHand() {
       if (ending !== null && ending !== 0) {
         cohEl.value = ending.toFixed(2);
         saveState();
+        updateCashOnHand();
       }
     }
   }
+}
+
+/**
+ * Recalculate both "Cash on Hand before calculation" (sales table)
+ * and "Cash on Hand" (expenses table) rows.
+ *
+ * COH before calc [day 0] = coh_start input
+ * COH before calc [day i] = COH [day i-1]  (i.e. previous day's "after")
+ * COH [day i] = COH before calc [day i] – cash expenses total [day i]
+ */
+function updateCashOnHand() {
+  const cohStartEl = document.getElementById('coh-start');
+  const startVal = cohStartEl ? (parseFloat(cohStartEl.value) || 0) : 0;
+
+  let cohBefore = startVal;
+  DAYS().forEach((_, i) => {
+    // Write "COH before calc" for all days (all are display cells now)
+    const cell = document.getElementById(`coh-before-${i}`);
+    if (cell) cell.textContent = fmt(cohBefore);
+
+    // Get expense total for this day
+    let dayExp = 0;
+    cashExpenses.forEach(ex => {
+      const el = qsel(`exp_${ex}_${i}`);
+      dayExp += el ? (parseFloat(el.value) || 0) : 0;
+    });
+
+    const cohAfter = cohBefore - dayExp;
+
+    // Write "Cash on Hand" in expenses table
+    const afterCell = document.getElementById(`coh-after-${i}`);
+    if (afterCell) afterCell.textContent = fmt(cohAfter);
+
+    cohBefore = cohAfter; // next day starts with this
+  });
 }
 
 /* ═══════════════════════════════════════════
@@ -1406,16 +1519,6 @@ function buildScreenshotClone(qrText) {
   title.textContent = `${storeName} – ${tEn('weekOf')} ${formatDate(dates[0])} – ${formatDate(dates[6])}`;
   wrap.appendChild(title);
 
-  // Cash on Hand line
-  const cohEl = document.getElementById('coh-start');
-  const cohVal = cohEl ? (parseFloat(cohEl.value) || 0) : 0;
-  if (cohVal) {
-    const cohLine = document.createElement('div');
-    cohLine.style.cssText = 'font-size:13px;color:#1e1e2f;margin-bottom:12px;padding:8px 12px;background:#eef0f4;border-radius:8px;display:inline-block;';
-    cohLine.innerHTML = `<strong style="color:#6b7194;text-transform:uppercase;font-size:11px;letter-spacing:.05em;">${tEn('cashOnHand')}:</strong> <span style="font-weight:700;margin-left:6px;">$${cohVal.toFixed(2)}</span>`;
-    wrap.appendChild(cohLine);
-  }
-
   // Clone sales table
   const salesClone = document.getElementById('sales-table').cloneNode(true);
   forceEnglishClone(salesClone);
@@ -1430,6 +1533,32 @@ function buildScreenshotClone(qrText) {
     span.style.cssText = 'display:block;text-align:right;font-size:13px;padding:4px;color:#1e1e2f;';
     inp.parentNode.replaceChild(span, inp);
   });
+  // Remove auto-fill button from clone (no longer in sales table, but just in case)
+  salesClone.querySelectorAll('.btn-auto-fill-inline, .btn-auto-fill-sm').forEach(btn => btn.remove());
+
+  // Clone Cash on Hand before calculation section
+  const cohStartEl = document.getElementById('coh-start');
+  const cohStartVal = cohStartEl ? (parseFloat(cohStartEl.value) || 0) : 0;
+
+  const cohTitle = document.createElement('div');
+  cohTitle.style.cssText = 'font-size:13px;font-weight:600;color:#6b7194;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;';
+  cohTitle.textContent = I18N.en.cohBeforeCalc;
+  wrap.appendChild(cohTitle);
+
+  // Starting cash line
+  if (cohStartVal) {
+    const cohLine = document.createElement('div');
+    cohLine.style.cssText = 'font-size:13px;color:#1e1e2f;margin-bottom:8px;padding:6px 12px;background:#eef0f4;border-radius:8px;display:inline-block;';
+    cohLine.innerHTML = `<strong style="color:#6b7194;font-size:11px;letter-spacing:.05em;">${I18N.en.startingCash}:</strong> <span style="font-weight:700;margin-left:6px;">$${cohStartVal.toFixed(2)}</span>`;
+    wrap.appendChild(cohLine);
+  }
+
+  const cohClone = document.getElementById('coh-before-table').cloneNode(true);
+  forceEnglishClone(cohClone);
+  styleCloneTable(cohClone);
+  const cohLabel = cohClone.querySelector('.coh-before-row .row-label');
+  if (cohLabel) cohLabel.textContent = I18N.en.cashOnHand;
+  wrap.appendChild(cohClone);
 
   // Clone hours table — English title
   const hoursTitle = document.createElement('div');
@@ -1493,6 +1622,9 @@ function buildScreenshotClone(qrText) {
       inp.parentNode.replaceChild(span, inp);
     });
     expClone.querySelectorAll('.emp-check-cell').forEach(el => el.remove());
+    // Force english on COH after row label
+    const cohAfterLabel = expClone.querySelector('.coh-after-row .row-label');
+    if (cohAfterLabel) cohAfterLabel.textContent = I18N.en.cashOnHand;
     wrap.appendChild(expClone);
   }
 
@@ -1820,7 +1952,7 @@ function applyI18n() {
     const val = t(key);
     if (val) el.placeholder = val;
   });
-  document.title = `Mufu – ${t('subtitle')}`;
+  document.title = `EasyDailyReport – ${t('subtitle')}`;
 }
 
 function setLanguage(lang) {
@@ -1837,6 +1969,7 @@ function setLanguage(lang) {
   });
   // Rebuild tables with new language
   buildSalesTable();
+  buildCohBeforeTable();
   buildHoursTable();
   buildInvoicesTable();
   buildExpensesTable();
@@ -1851,7 +1984,9 @@ function setLanguage(lang) {
   updateHoursTotals();
   updateInvoicesTotals();
   updateExpensesTotals();
+  updateCashOnHand();
   saveState();
+  lucide.createIcons();
 }
 
 /* ═══════════════════════════════════════════
@@ -1881,6 +2016,7 @@ function init() {
 
   // Build tables
   buildSalesTable();
+  buildCohBeforeTable();
   buildHoursTable();
   buildInvoicesTable();
   buildExpensesTable();
@@ -1954,7 +2090,9 @@ function init() {
       if (col) updateSalesTotals();
       if (e.target.dataset.emp || e.target.dataset.salary) updateHoursTotals();
       if (e.target.dataset.vendor) updateInvoicesTotals();
-      if (e.target.dataset.expense) updateExpensesTotals();
+      if (e.target.dataset.expense) { updateExpensesTotals(); updateCashOnHand(); }
+      // Recalc COH when the day-1 starting cash input changes
+      if (e.target.id === 'coh-start') updateCashOnHand();
       updateNotesCounter();
     }
   });
@@ -1980,8 +2118,11 @@ function init() {
   // Store name edit
   document.getElementById('btn-edit-name').addEventListener('click', editStoreName);
 
-  // Cash on Hand auto-fill button
-  document.getElementById('btn-auto-fill-coh').addEventListener('click', autoFillCashOnHand);
+  // Cash on Hand auto-fill button (inside the sales table, re-created on rebuild)
+  // Use delegation so it works after language switch / table rebuild
+  document.addEventListener('click', e => {
+    if (e.target.closest('#btn-auto-fill-coh')) autoFillCashOnHand();
+  });
 
   // Export CSV
   document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
@@ -2027,11 +2168,6 @@ function exportCSV() {
   // --- Cash on Hand ---
   const cohEl = document.getElementById('coh-start');
   const cohVal = cohEl ? (parseFloat(cohEl.value) || 0) : 0;
-  if (cohVal) {
-    rows.push('CASH ON HAND');
-    rows.push('Starting Cash,' + cohVal.toFixed(2));
-    rows.push('');
-  }
 
   // --- Sales ---
   rows.push('DAILY SALES');
@@ -2067,6 +2203,28 @@ function exportCSV() {
     return daySum.toFixed(2);
   });
   rows.push(['Totals', ...dayTots, grandTotal.toFixed(2)].join(','));
+
+  // Cash on Hand before calculation row (inside DAILY SALES)
+  {
+    let cohBefore = cohVal;
+    const cohBeforeVals = [];
+    const cohAfterVals = [];
+    enDays.forEach((_, i) => {
+      cohBeforeVals.push(cohBefore.toFixed(2));
+      let dayExp = 0;
+      cashExpenses.forEach(ex => {
+        const el = qsel(`exp_${ex}_${i}`);
+        dayExp += el ? (parseFloat(el.value) || 0) : 0;
+      });
+      const cohAfter = cohBefore - dayExp;
+      cohAfterVals.push(cohAfter.toFixed(2));
+      cohBefore = cohAfter;
+    });
+    rows.push(['Cash on Hand before calculation', ...cohBeforeVals, ''].join(','));
+    // We'll output Cash on Hand row later in expenses section
+    // Store cohAfterVals for later
+    var _csvCohAfterVals = cohAfterVals;
+  }
 
   // --- Hours ---
   if (employees.length > 0) {
@@ -2119,6 +2277,15 @@ function exportCSV() {
       });
       rows.push([csvEscape(ex), ...vals, exTotal.toFixed(2)].join(','));
     });
+    // Cash on Hand row under expenses
+    if (_csvCohAfterVals) {
+      rows.push(['Cash on Hand', ..._csvCohAfterVals, ''].join(','));
+    }
+  } else if (_csvCohAfterVals) {
+    // Even if no named expenses, output the COH row
+    rows.push('');
+    rows.push('CASH ON HAND');
+    rows.push(['Cash on Hand', ..._csvCohAfterVals, ''].join(','));
   }
 
   // --- Notes ---

@@ -1,3 +1,3 @@
 # Easy Daily Report
 
-6
+Simple and Local
