@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" class="notranslate">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google" content="notranslate" />
+  <title>Mufu – Weekly Sales Report</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- QRCode.js (generation) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- jsQR (scanning) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</head>
+<body translate="no">
+
+<!-- ══════════════════════════════════════════
+     Header
+══════════════════════════════════════════ -->
+<header class="app-header">
+  <div class="logo">
+    <i data-lucide="utensils" style="color:#fff;width:24px;height:24px;"></i>
+  </div>
+  <div class="header-text">
+    <div class="store-name-row" translate="no">
+      <h1 id="store-name">Store Name</h1>
+      <button class="btn-edit-name" id="btn-edit-name" title="Edit store name">
+        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+      </button>
+    </div>
+    <p data-i18n="subtitle">Weekly Sales &amp; Hours Log</p>
+  </div>
+  <div class="lang-bar" translate="no">
+    <button class="lang-btn active" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="zh">中文</button>
+    <button class="lang-btn" data-lang="es">ES</button>
+  </div>
+</header>
+
+<!-- week picker -->
+<div class="week-bar">
+  <label for="week-start" data-i18n="weekStarting">Week starting:</label>
+  <input type="date" id="week-start" />
+</div>
+
+<!-- ══════════════════════════════════════════
+     Cash on Hand
+══════════════════════════════════════════ -->
+<div class="card cash-on-hand-card" id="cash-on-hand-card">
+  <div class="card-title">
+    <i data-lucide="banknote" style="width:14px;height:14px;"></i>
+    <span data-i18n="cashOnHand">Cash on Hand</span>
+  </div>
+  <div class="coh-row">
+    <label class="coh-label" data-i18n="startingCash">Starting Cash</label>
+    <div class="coh-input-wrap">
+      <span class="coh-dollar">$</span>
+      <input class="inp coh-inp" type="number" inputmode="decimal" min="0" step="0.01"
+        placeholder="0.00"
+        data-key="coh_start"
+        id="coh-start" />
+    </div>
+    <button class="btn-auto-fill" id="btn-auto-fill-coh" title="Auto-fill from previous week">
+      <i data-lucide="wand-2" style="width:14px;height:14px;"></i>
+      <span data-i18n="autoFill">Auto-fill</span>
+    </button>
+  </div>
+  <div class="coh-hint" id="coh-hint" data-i18n="cohHint">Tip: Use auto-fill to pull from the most recent previous week, or enter manually.</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Action Buttons
+══════════════════════════════════════════ -->
+<div class="actions">
+  <button class="btn btn-primary" id="btn-snapshot">
+    <i data-lucide="camera" style="width:18px;height:18px;"></i>
+    <span data-i18n="generateSnapshot">Generate Snapshot</span>
+  </button>
+  <button class="btn btn-secondary" id="btn-history">
+    <i data-lucide="history" style="width:18px;height:18px;"></i>
+    <span data-i18n="previousWeeks">Previous Weeks</span>
+  </button>
+  <button class="btn btn-secondary btn-upload-wrap" id="btn-bulk-upload">
+    <i data-lucide="upload" style="width:18px;height:18px;"></i>
+    <span data-i18n="uploadPastWeeks">Upload Past Weeks</span>
+    <span class="btn-info" id="btn-info" title="Info" aria-label="Info">
+      <i data-lucide="info" style="width:16px;height:16px;"></i>
+    </span>
+  </button>
+</div>
+<input type="file" id="bulk-file-input" accept="image/*" multiple />
+
+<!-- Info popup -->
+<div class="info-overlay" id="info-overlay"></div>
+<div class="info-popup" id="info-popup">
+  <button class="info-popup-close" id="btn-info-close" aria-label="Close">&times;</button>
+  <p id="info-text" data-i18n="infoMessage">All data is stored only on your device. If you delete the app, clear your storage, switch phones, or change browsers, your data will be lost. However, every snapshot includes a QR code — simply upload your snapshot photos here to restore all your previous weeks instantly.</p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Sales Card
+══════════════════════════════════════════ -->
+<div class="card" id="sales-card">
+  <div class="card-title">
+    <i data-lucide="trending-up" style="width:14px;height:14px;"></i>
+    <span data-i18n="dailySales">Daily Sales</span>
+  </div>
+  <div class="table-wrap">
+    <table id="sales-table">
+      <thead>
+        <tr id="sales-head-row">
+          <th></th>
+          <!-- day columns injected by JS -->
+          <th data-i18n="totals">Totals</th>
+        </tr>
+      </thead>
+      <tbody id="sales-body">
+        <!-- rows (Sales, Cash, CC, DD) injected by JS -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Invoices Card
+══════════════════════════════════════════ -->
+<div class="card" id="invoices-card">
+  <div class="card-title">
+    <i data-lucide="receipt" style="width:14px;height:14px;"></i>
+    <span data-i18n="invoices">Invoices</span>
+  </div>
+  <div class="table-wrap">
+    <table id="invoices-table">
+      <thead>
+        <tr id="invoices-head-row">
+          <th data-i18n="vendor">Vendor</th>
+          <!-- day columns injected by JS -->
+          <th data-i18n="totals">Totals</th>
+        </tr>
+      </thead>
+      <tbody id="invoices-body"></tbody>
+      <tfoot>
+        <tr class="totals-row" id="invoices-totals-row">
+          <td data-i18n="totals">Totals</td>
+          <!-- day totals injected by JS -->
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="emp-actions" id="vendor-actions">
+    <button class="btn-emp btn-emp-add" id="btn-add-vendor">
+      <i data-lucide="plus" style="width:15px;height:15px;"></i>
+      <span data-i18n="addVendor">Add Vendor</span>
+    </button>
+    <button class="btn-emp btn-emp-del-toggle" id="btn-del-vendor-mode">
+      <i data-lucide="minus" style="width:15px;height:15px;"></i>
+      <span data-i18n="deleteVendors">Delete Vendors</span>
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Cash Expenses Card
+══════════════════════════════════════════ -->
+<div class="card" id="expenses-card">
+  <div class="card-title">
+    <i data-lucide="wallet" style="width:14px;height:14px;"></i>
+    <span data-i18n="Cash Expenses">Cash Expenses</span>
+  </div>
+  <div class="table-wrap">
+    <table id="expenses-table">
+      <thead>
+        <tr id="expenses-head-row">
+          <th data-i18n="expense">Expense</th>
+          <!-- day columns injected by JS -->
+          <th data-i18n="totals">Totals</th>
+        </tr>
+      </thead>
+      <tbody id="expenses-body"></tbody>
+      <tfoot>
+        <tr class="totals-row" id="expenses-totals-row">
+          <td data-i18n="totals">Totals</td>
+          <!-- day totals injected by JS -->
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="emp-actions" id="expense-actions">
+    <button class="btn-emp btn-emp-add" id="btn-add-expense">
+      <i data-lucide="plus" style="width:15px;height:15px;"></i>
+      <span data-i18n="Add Expense">Add Expense</span>
+    </button>
+    <button class="btn-emp btn-emp-del-toggle" id="btn-del-expense-mode">
+      <i data-lucide="minus" style="width:15px;height:15px;"></i>
+      <span data-i18n="Delete Expenses">Delete Expenses</span>
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Employee Hours Card
+══════════════════════════════════════════ -->
+<div class="card" id="hours-card">
+  <div class="card-title">
+    <i data-lucide="clock" style="width:14px;height:14px;"></i>
+    <span data-i18n="employeeHours">Employee Hours</span>
+  </div>
+  <div class="table-wrap">
+    <table class="hours-table" id="hours-table">
+      <thead>
+        <tr id="hours-head-row">
+          <th data-i18n="employee">Employee</th>
+          <!-- day columns injected by JS -->
+        </tr>
+      </thead>
+      <tbody id="hours-body"></tbody>
+      <tfoot>
+        <tr class="hours-totals" id="hours-totals-row">
+          <td data-i18n="totalHrs">Total hrs</td>
+          <!-- totals injected by JS -->
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Notes
+══════════════════════════════════════════ -->
+<div class="card" id="notes-card">
+  <div class="card-title">
+    <i data-lucide="message-square" style="width:14px;height:14px;"></i>
+    <span data-i18n="notes">Notes</span>
+  </div>
+  <textarea class="notes-box" id="week-notes" data-key="notes" placeholder="Add notes for this week…" data-i18n-placeholder="notesPlaceholder"></textarea>
+  <div class="notes-counter" id="notes-counter"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Export CSV
+══════════════════════════════════════════ -->
+<div class="csv-section">
+  <p class="csv-hint" data-i18n="csvHint">Download this week as a .csv file for Excel, Google Sheets, or Numbers.</p>
+  <button class="btn btn-csv" id="btn-export-csv">
+    <i data-lucide="file-spreadsheet" style="width:18px;height:18px;"></i>
+    <span data-i18n="exportCSV">Export CSV</span>
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Previous Weeks Sidebar
+══════════════════════════════════════════ -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="history-panel">
+  <div class="sidebar-header">
+    <div class="sidebar-title">
+      <i data-lucide="calendar" style="width:16px;height:16px;"></i>
+      <span data-i18n="previousWeeks">Previous Weeks</span>
+    </div>
+    <button class="sidebar-close" id="btn-history-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="history-list" class="history-list">
+    <!-- filled by JS -->
+  </div>
+  <div class="history-empty" id="history-empty" style="display:none;">
+    <span data-i18n="noSavedWeeks">No saved weeks yet. Enter data or upload past week snapshots.</span>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-limit-text" data-i18n="weeksMax">20 weeks max stored on device</div>
+    <button class="btn btn-danger-outline" id="btn-delete-oldest" data-i18n="deleteOldest10">Delete Oldest 10 Weeks</button>
+  </div>
+</aside>
+
+<!-- QR / snapshot hidden container -->
+<div id="snapshot-wrap">
+  <div id="qr-corner"></div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- App logic -->
+<script src="app.js"></script>
+
+</body>
+</html>
