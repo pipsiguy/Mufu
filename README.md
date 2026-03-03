@@ -1,3 +1,1 @@
-# Easy Daily Report
-
-Simple and Local
+# Restaraunt Solutions
