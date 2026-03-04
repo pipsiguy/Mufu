@@ -1,0 +1,83 @@
+Beef - Price: $5.21 - Unit: lbs
+Chicken - Price: $1.27 - Unit: lbs
+Small Lunch Box - Price: N/A - Unit: Unknown
+22oz Cups - Price: $52.50 - Unit: box
+Shrimp - Price: $128.00 - Unit: boxes
+Rice - Price: $23.50 - Unit: bags
+Plastic Wrap - Price: $19.50 - Unit: box
+22oz Lids - Price: $52.50 - Unit: boxes
+Salmon - Price: $4.60 - Unit: lb
+Kokuho Rice - Price: $28.50 - Unit: bags
+Gloves - Price: N/A - Unit: Unknown
+2 oz - Price: $33.00 - Unit: sets
+Cabbage - Price: $6 - Unit: Unknown
+Soy Sauce - Price: $26.50 - Unit: buckets
+Aprons - Price: N/A - Unit: Unknown
+2 oz Lids - Price: N/A - Unit: Unknown
+Broccoli - Price: $27.00 - Unit: box
+Chicken Bones - Price: $0.66 - Unit: lbs
+Straws - Price: N/A - Unit: Unknown
+Water Cups - Price: N/A - Unit: Unknown
+Carrots - Price: $26.00 - Unit: box
+Vegetable Oil - Price: $28.95 - Unit: buckets
+306 Box - Price: $43.00 - Unit: boxes
+Bottled Drinks - Price: $32.15 - Unit: boxes
+Large Onion - Price: $20.00 - Unit: bag
+Spring Rolls - Price: $39.95 - Unit: boxes
+Receipt Paper - Price: $48.00 - Unit: box
+Soda Syrup - Price: $113.10 - Unit: boxes
+Celery - Price: $43.00 - Unit: Unknown
+Dumplings - Price: $64.95 - Unit: boxes
+Disposable Plates - Price: N/A - Unit: Unknown
+Bottled Water - Price: $4.99 - Unit: box
+Ginger - Price: $2.95 - Unit: lbs
+Fried Shrimp - Price: $51.00 - Unit: boxes
+Cleaning Towels - Price: N/A - Unit: Unknown
+Self-purchased Drinks - Price: $4.99 - Unit: packs
+Garlic - Price: $3.85 - Unit: lbs
+Tofu - Price: $2.98 - Unit: bags
+Cleanser - Price: N/A - Unit: Unknown
+co 2 - Price: $40.64 - Unit: pieces
+Egg Noodles - Price: $300 - Unit: Unknown
+Green/Red Bell Peppers - Price: $19.50 - Unit: box
+Crab Sticks - Price: $3.15 - Unit: lbs
+Mayonnaise - Price: $4 - Unit: Unknown
+Small Soy Sauce Packets - Price: $6.95 - Unit: boxes
+Sushi Salmon - Price: $Company Out of Stock - Unit: Unknown
+Ketchup - Price: $1 - Unit: Unknown
+Small Chili Packets - Price: $12.75 - Unit: boxes
+Minced Tuna - Price: $4.95 - Unit: lbs
+Teppanyaki Sauce - Price: $1 - Unit: Unknown
+Chili Sauce - Price: $2.29 - Unit: bottles
+Avocado - Price: $43.00 - Unit: boxes
+Shaoxing Rice Wine - Price: $1 - Unit: Unknown
+Small Yellow Mustard Packets - Price: N/A - Unit: Unknown
+Sushi Vinegar - Price: $45.00 - Unit: box
+White Vinegar - Price: $1 - Unit: Unknown
+Butter - Price: $33.00 - Unit: box
+Sushi Nori - Price: $80.00 - Unit: boxes
+Sesame Oil - Price: $1 - Unit: Unknown
+Chicken Roll - Price: $30.95 - Unit: boxes
+White Sugar - Price: $0.8 - Unit: Unknown
+Brown Sugar - Price: $1.5 - Unit: Unknown
+Spring Roll Bags - Price: $14.50 - Unit: boxes
+Sushi Plate No. 10 - Price: $87.50 - Unit: box
+Cornstarch - Price: $0.5 - Unit: Unknown
+Yellow Mustard Powder - Price: N/A - Unit: Unknown
+Sushi Lids - Price: $87.50 - Unit: box
+Green Onion - Price: $0.2 - Unit: Unknown
+Dish Soap - Price: $13.95 - Unit: box
+Wine - Price: $1 - Unit: Unknown
+Bleach - Price: $19.95 - Unit: box
+Stove Cleaner - Price: $19.00 - Unit: boxes
+Sushi Kombu - Price: $17.95 - Unit: bag
+Grey Paper Towels - Price: $23.50 - Unit: box
+Sushi Wasabi Powder - Price: $7.50 - Unit: bags
+Toilet Paper - Price: $20.50 - Unit: box
+Sushi Red Ginger - Price: N/A - Unit: Unknown
+Forks - Price: $16.00 - Unit: boxes
+Takeout Bags - Price: $30.00 - Unit: boxes
+Chopsticks - Price: $37.00 - Unit: box
+Trash Bags - Price: $7.50 - Unit: boxes
+Napkins - Price: $28.00 - Unit: boxes
+Lunch Box 241 - Price: $18.00 - Unit: boxes

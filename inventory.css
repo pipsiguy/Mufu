@@ -1,0 +1,670 @@
+/* ══════════════════════════════════════════
+   Monthly Inventory – inventory.css
+══════════════════════════════════════════ */
+
+/* ── Nav bar (shared between pages) ── */
+.nav-bar {
+  margin-bottom: 16px;
+}
+
+.btn-inventory,
+.btn-back-daily {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .2s, color .2s;
+}
+
+.btn-inventory:hover,
+.btn-back-daily:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-inventory:hover i,
+.btn-inventory:hover svg,
+.btn-back-daily:hover i,
+.btn-back-daily:hover svg {
+  color: #fff;
+  stroke: #fff;
+}
+
+/* ── Month picker ── */
+.month-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.month-bar label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.month-bar #inv-month {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  height: var(--input-h);
+  outline: none;
+  cursor: pointer;
+}
+
+.month-bar #inv-month:focus {
+  border-color: var(--accent);
+}
+
+.inv-month-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.inv-month-modal {
+  width: 420px;
+  max-width: 95vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  padding: 14px;
+}
+
+.inv-month-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.inv-month-year-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.inv-month-year-row label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.inv-month-year-row select {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+.inv-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.inv-month-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.inv-month-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.inv-month-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ── Inventory actions row ── */
+.inv-actions {
+  grid-template-columns: 1fr 1fr 1fr !important;
+}
+
+.inv-actions .btn {
+  padding: 10px 8px;
+  font-size: 0.82rem;
+  gap: 6px;
+}
+
+.inv-actions .btn span {
+  white-space: nowrap;
+}
+
+/* ── Search bar ──────────────────────────── */
+.inv-search-bar {
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto 14px;
+  padding: 0 16px;
+}
+.inv-search-input {
+  width: 100%;
+  padding: 10px 38px 10px 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+  direction: ltr;
+  transition: border-color .2s, box-shadow .2s;
+}
+.inv-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+}
+.inv-search-icon {
+  position: absolute;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.inv-search-clear {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  line-height: 0;
+}
+.inv-search-clear:hover { color: var(--text); }
+
+/* Filtering visibility helpers */
+.inv-search-hidden { display: none !important; }
+.inv-no-results {
+  text-align: center;
+  color: var(--muted);
+  padding: 24px 16px;
+  font-size: 0.95rem;
+}
+
+.inv-top-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.inv-mini-btn {
+  padding: 8px 12px !important;
+  font-size: 0.8rem !important;
+}
+
+.inv-danger-btn {
+  background: #dc3545 !important;
+  color: #fff !important;
+  border: 1px solid #dc3545 !important;
+}
+
+.inv-danger-btn:hover {
+  opacity: 0.92;
+}
+
+.inv-wrap-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.inv-head-btn {
+  padding: 6px 10px !important;
+  font-size: 0.75rem !important;
+  white-space: nowrap;
+}
+
+.inv-edit-name,
+.inv-edit-price,
+.inv-edit-unit {
+  width: 100% !important;
+  height: 34px !important;
+  font-size: 0.82rem !important;
+}
+
+.inv-edit-price {
+  text-align: center !important;
+}
+
+.inv-bottom-actions {
+  margin-top: 8px;
+  margin-bottom: 14px;
+}
+
+.inv-bottom-actions .btn {
+  width: 100%;
+}
+
+.inv-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.inv-picker-modal {
+  width: 460px;
+  max-width: 95vw;
+  max-height: 85vh;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+}
+
+.inv-picker-title {
+  padding: 14px 16px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.inv-picker-list {
+  padding: 10px 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inv-picker-option {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface2);
+}
+
+.inv-picker-option input {
+  width: 16px;
+  height: 16px;
+}
+
+.inv-picker-empty {
+  color: var(--muted);
+  padding: 8px 2px;
+}
+
+.inv-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Inventory cards ── */
+.inv-card {
+  overflow: visible;
+}
+
+.inv-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.inv-cat-title {
+  flex: 1;
+  margin-bottom: 0 !important;
+}
+
+.inv-cat-subtotal {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.inv-collapse-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform .25s, background .15s;
+  flex-shrink: 0;
+}
+
+.inv-collapse-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.inv-collapse-btn:hover i,
+.inv-collapse-btn:hover svg {
+  color: #fff;
+  stroke: #fff;
+}
+
+.inv-collapse-btn.rotated {
+  transform: rotate(180deg);
+}
+
+/* ── Collapsible table wrapper ── */
+.inv-table-wrap {
+  max-height: 2000px;
+  overflow: hidden;
+  transition: max-height .35s ease, opacity .25s ease;
+  opacity: 1;
+  margin-top: 12px;
+}
+
+.inv-table-wrap.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+}
+
+/* ── Inventory table ── */
+.inv-table {
+  width: 100%;
+  min-width: 500px;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 0.85rem;
+}
+
+.inv-table thead th {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 0 6px 6px;
+}
+
+.inv-table thead th:first-child {
+  text-align: left;
+}
+
+.inv-th-item  { width: 35%; min-width: 140px; }
+.inv-th-price { width: 18%; min-width: 80px; }
+.inv-th-unit  { width: 12%; min-width: 60px; }
+.inv-th-qty   { width: 15%; min-width: 70px; }
+.inv-th-total { width: 20%; min-width: 80px; }
+
+.inv-table tbody tr td {
+  background: var(--surface2);
+  padding: 6px 8px;
+}
+
+.inv-table tbody tr td:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+  padding-left: 12px;
+}
+
+.inv-table tbody tr td:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding-right: 12px;
+}
+
+.inv-item-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.inv-item-price {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.inv-item-unit {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.inv-qty {
+  width: 80px !important;
+  text-align: center !important;
+  font-size: 0.9rem !important;
+}
+
+.inv-line-total {
+  font-weight: 700;
+  color: var(--success);
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.inv-table tfoot td {
+  background: transparent !important;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* ── Grand Total card ── */
+.grand-total-card {
+  background: linear-gradient(135deg, var(--accent) 0%, #5b4fe6 100%);
+  border: none;
+  color: #fff;
+}
+
+.grand-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+}
+
+.grand-total-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.grand-total-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+/* ── Monthly Invoices card ── */
+.inv-invoices-card {
+  margin-top: 12px;
+}
+
+.inv-invoices-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.inv-invoices-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.inv-invoices-table {
+  font-size: 0.82rem;
+}
+
+.inv-invoices-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.inv-invoices-cell {
+  text-align: right;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.inv-invoices-cell.tot-cell {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.inv-invoices-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 4px;
+  margin-top: 8px;
+  border-top: 2px solid var(--accent);
+}
+
+.inv-invoices-total-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.inv-invoices-total-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.inv-invoices-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+/* Paid / Unpaid toggle in monthly invoices */
+.inv-toggle-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.inv-toggle-label-monthly {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 4px;
+  vertical-align: middle;
+  min-width: 38px;
+}
+
+/* ── Notes ─────────────────────────────── */
+.inv-notes-box {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color .2s;
+}
+.inv-notes-box:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+}
+
+.inv-invoice-vendor,
+.inv-invoice-amount,
+.inv-invoice-date {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.inv-invoice-date {
+  font-size: 0.82rem;
+  padding: 5px 6px;
+  min-width: 120px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .inv-actions {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 8px;
+  }
+
+  .inv-actions .btn {
+    padding: 9px 6px;
+    font-size: 0.74rem;
+    gap: 4px;
+  }
+
+  .inv-head-btn {
+    padding: 5px 7px !important;
+    font-size: 0.68rem !important;
+  }
+
+  .inv-cat-header {
+    flex-wrap: wrap;
+  }
+
+  .inv-cat-subtotal {
+    font-size: 0.9rem;
+  }
+
+  .grand-total-value {
+    font-size: 1.3rem;
+  }
+}

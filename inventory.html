@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" class="notranslate">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google" content="notranslate" />
+  <title>Monthly Inventory</title>
+  <link rel="icon" type="image/png" href="images/logo.png" />
+
+  <!-- Shared base styles -->
+  <link rel="stylesheet" href="style.css" />
+  <!-- Inventory-specific styles -->
+  <link rel="stylesheet" href="inventory.css" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+  <!-- html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- QRCode.js (generation) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- jsQR (decoding) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</head>
+<body translate="no">
+
+<!-- ══════════════════════════════════════════
+     Header
+══════════════════════════════════════════ -->
+<header class="app-header">
+  <div class="logo">
+    <i data-lucide="clipboard-list" style="color:#fff;width:24px;height:24px;"></i>
+  </div>
+  <div class="header-text">
+    <div class="store-name-row" translate="no">
+      <h1 id="store-name">Store Name</h1>
+    </div>
+    <p data-i18n="invSubtitle">Monthly Inventory</p>
+  </div>
+  <div class="lang-bar" translate="no">
+    <button class="lang-btn active" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="zh">中文</button>
+    <button class="lang-btn" data-lang="es">ES</button>
+  </div>
+</header>
+
+<!-- Navigation back -->
+<div class="nav-bar">
+  <a href="index.html" class="btn btn-back-daily">
+    <i data-lucide="arrow-left" style="width:18px;height:18px;"></i>
+    <span data-i18n="backToDaily">Back to Daily Sales</span>
+  </a>
+</div>
+
+<!-- Month Picker -->
+<div class="month-bar">
+  <label for="inv-month" data-i18n="selectMonth">Select Month:</label>
+  <input type="text" id="inv-month" readonly />
+</div>
+
+<!-- ══════════════════════════════════════════
+     Action Buttons
+══════════════════════════════════════════ -->
+<div class="actions inv-actions">
+  <button class="btn btn-primary" id="btn-inv-snapshot">
+    <i data-lucide="camera" style="width:18px;height:18px;"></i>
+    <span data-i18n="generateSnapshot">Generate Snapshot</span>
+  </button>
+  <button class="btn btn-secondary" id="btn-inv-upload-qr">
+    <i data-lucide="upload" style="width:18px;height:18px;"></i>
+    <span data-i18n="uploadQr">Upload QR</span>
+  </button>
+  <button class="btn btn-secondary" id="btn-inv-history">
+    <i data-lucide="history" style="width:18px;height:18px;"></i>
+    <span data-i18n="previousMonths">Previous Months</span>
+  </button>
+</div>
+<input type="file" id="inv-qr-file" accept="image/*" multiple style="display:none;" />
+
+<!-- Search / Filter -->
+<div class="inv-search-bar">
+  <i data-lucide="search" class="inv-search-icon"></i>
+  <input type="text" id="inv-search" class="inp inv-search-input" placeholder="Search items…" data-i18n-placeholder="searchPlaceholder" autocomplete="off" />
+  <button type="button" id="inv-search-clear" class="inv-search-clear" aria-label="Clear" style="display:none;">
+    <i data-lucide="x" style="width:16px;height:16px;"></i>
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Inventory Categories
+══════════════════════════════════════════ -->
+<div id="inventory-categories">
+  <!-- built by JS -->
+</div>
+
+<!-- ══════════════════════════════════════════
+     Grand Total
+══════════════════════════════════════════ -->
+<div class="card grand-total-card">
+  <div class="grand-total-row">
+    <span class="grand-total-label" data-i18n="grandTotal">Grand Total</span>
+    <span class="grand-total-value" id="grand-total-value">$0.00</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Monthly Invoices Total (pulled from weekly saves)
+══════════════════════════════════════════ -->
+<div class="card inv-invoices-card" id="inv-invoices-card">
+  <div class="inv-invoices-header">
+    <div class="card-title">
+      <i data-lucide="receipt" style="width:14px;height:14px;"></i>
+      <span data-i18n="monthlyInvoicesTitle">Monthly Invoices</span>
+    </div>
+    <button class="btn btn-secondary inv-mini-btn" id="btn-autofill-invoices">
+      <i data-lucide="wand-2" style="width:14px;height:14px;"></i>
+      <span data-i18n="autoFillInvoices">Auto-fill from Sales</span>
+    </button>
+  </div>
+  <div class="inv-invoices-hint" id="inv-invoices-hint" data-i18n="invoicesHint">Add invoices manually or auto-fill from your saved weekly reports.</div>
+  <div id="inv-invoices-body">
+    <!-- filled by JS -->
+  </div>
+  <div class="inv-invoices-actions">
+    <button class="btn btn-secondary inv-mini-btn" id="btn-add-invoice">
+      <i data-lucide="plus" style="width:14px;height:14px;"></i>
+      <span data-i18n="addInvoice">Add Invoice</span>
+    </button>
+    <button class="btn inv-mini-btn inv-danger-btn" id="btn-del-invoice">
+      <i data-lucide="minus" style="width:14px;height:14px;"></i>
+      <span data-i18n="deleteInvoice">Delete Invoice</span>
+    </button>
+  </div>
+  <div class="inv-invoices-total-row">
+    <span class="inv-invoices-total-label" data-i18n="monthlyInvoicesTotal">Monthly Invoices Total</span>
+    <span class="inv-invoices-total-value" id="inv-invoices-total">$0.00</span>
+  </div>
+</div>
+
+<!-- Notes -->
+<div class="card inv-card" id="inv-notes-card">
+  <h3 class="inv-card-title" data-i18n="invNotes">Notes</h3>
+  <textarea class="inv-notes-box" id="inv-notes" placeholder="Add notes for this month…" data-i18n-placeholder="invNotesPlaceholder"></textarea>
+  <div class="notes-counter" id="inv-notes-counter"></div>
+</div>
+
+<div class="inv-bottom-actions">
+  <button class="btn btn-secondary" id="btn-inv-clear-all">
+    <i data-lucide="trash-2" style="width:18px;height:18px;"></i>
+    <span data-i18n="clearAll">Clear All</span>
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Export CSV
+══════════════════════════════════════════ -->
+<div class="csv-section">
+  <p class="csv-hint" data-i18n="csvHint">Download this month’s inventory as a .csv file for Excel, Google Sheets, or Numbers.</p>
+  <button class="btn btn-csv" id="btn-inv-export-csv">
+    <i data-lucide="file-spreadsheet" style="width:18px;height:18px;"></i>
+    <span data-i18n="exportCSV">Export CSV</span>
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     Previous Months Sidebar
+══════════════════════════════════════════ -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="history-panel">
+  <div class="sidebar-header">
+    <div class="sidebar-title">
+      <i data-lucide="calendar" style="width:16px;height:16px;"></i>
+      <span data-i18n="previousMonths">Previous Months</span>
+    </div>
+    <button class="sidebar-close" id="btn-history-close" aria-label="Close">&times;</button>
+  </div>
+  <div id="history-list" class="history-list">
+    <!-- filled by JS -->
+  </div>
+  <div class="history-empty" id="history-empty" style="display:none;">
+    <span data-i18n="noSavedMonths">No saved months yet.</span>
+  </div>
+</aside>
+
+<!-- QR / snapshot hidden container -->
+<div id="snapshot-wrap">
+  <div id="qr-corner"></div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- App logic -->
+<script src="inventory.js"></script>
+
+</body>
+</html>
