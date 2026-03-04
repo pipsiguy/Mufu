@@ -61,6 +61,8 @@ const I18N = {
     addVendor: 'Add Vendor',
     deleteVendors: 'Delete Vendors',
     vendorName: 'Vendor name:',
+    paid: 'Paid',
+    unpaid: 'Unpaid',
     cashExpenses: 'Cash Expenses',
     expense: 'Expense',
     addExpense: 'Add Expense',
@@ -90,7 +92,8 @@ const I18N = {
     autoFill: 'Auto-fill',
     cohHint: 'Tip: Use auto-fill to pull from the most recent previous week, or enter manually.',
     cohAutoFilled: '✅ Starting cash auto-filled from previous week',
-    cohNoPrevious: '⚠ No previous week data found to auto-fill from'
+    cohNoPrevious: '⚠ No previous week data found to auto-fill from',
+    monthlyInventory: 'Monthly Inventory'
   },
   zh: {
     subtitle: 'Easy Daily Report',
@@ -134,6 +137,8 @@ const I18N = {
     addVendor: '添加供应商',
     deleteVendors: '删除供应商',
     vendorName: '供应商名称：',
+    paid: '已付',
+    unpaid: '未付',
     cashExpenses: '现金支出',
     expense: '支出',
     addExpense: '添加支出',
@@ -163,7 +168,8 @@ const I18N = {
     autoFill: '自动填充',
     cohHint: '提示：使用自动填充从最近的上一周提取，或手动输入。',
     cohAutoFilled: '✅ 期初现金已从上周自动填充',
-    cohNoPrevious: '⚠ 未找到可自动填充的上周数据'
+    cohNoPrevious: '⚠ 未找到可自动填充的上周数据',
+    monthlyInventory: '月度库存'
   },
   es: {
     subtitle: 'Easy Daily Report',
@@ -207,6 +213,8 @@ const I18N = {
     addVendor: 'Agregar Proveedor',
     deleteVendors: 'Eliminar Proveedores',
     vendorName: 'Nombre del proveedor:',
+    paid: 'Pagado',
+    unpaid: 'No pagado',
     cashExpenses: 'Gastos en Efectivo',
     expense: 'Gasto',
     addExpense: 'Agregar Gasto',
@@ -236,7 +244,8 @@ const I18N = {
     autoFill: 'Auto-llenar',
     cohHint: 'Consejo: Use auto-llenar para traer datos de la semana anterior, o ingrese manualmente.',
     cohAutoFilled: '✅ Efectivo inicial auto-llenado de la semana anterior',
-    cohNoPrevious: '⚠ No se encontraron datos de semana anterior para auto-llenar'
+    cohNoPrevious: '⚠ No se encontraron datos de semana anterior para auto-llenar',
+    monthlyInventory: 'Inventario Mensual'
   }
 };
 
@@ -250,7 +259,7 @@ function qsel(key) {
 }
 
 /* Validate name input — reject characters that break HTML */
-const FORBIDDEN_RE = /[<>"&]/;
+const FORBIDDEN_RE = /[<>"&|]/;
 function isNameSafe(name) {
   if (FORBIDDEN_RE.test(name)) {
     showToast(t('forbiddenChars'));
@@ -295,18 +304,21 @@ function getSavedWeeks() {
       weeks.push(k.replace(WEEK_PREFIX, ''));
     }
   }
-  // Also check for legacy prefixes and migrate
+  // Also check for legacy prefixes and migrate (collect first, then mutate)
+  const legacyKeys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith('mufu_week_') && !weeks.includes(k.replace('mufu_week_', ''))) {
-      const dateStr = k.replace('mufu_week_', '');
-      // Migrate old key to new prefix
+    if (k && k.startsWith('mufu_week_')) legacyKeys.push(k);
+  }
+  legacyKeys.forEach(k => {
+    const dateStr = k.replace('mufu_week_', '');
+    if (!weeks.includes(dateStr)) {
       const data = localStorage.getItem(k);
       localStorage.setItem(WEEK_PREFIX + dateStr, data);
-      localStorage.removeItem(k);
       weeks.push(dateStr);
     }
-  }
+    localStorage.removeItem(k);
+  });
   return weeks.sort().reverse();
 }
 
@@ -403,6 +415,7 @@ function applyState(s) {
   updateExpensesTotals();
   updateCashOnHand();
   updateNotesCounter();
+  syncVendorPaidToggles();
 }
 
 function switchToWeek(dateStr) {
@@ -470,7 +483,10 @@ function formatDate(d) {
 }
 
 function isoDate(d) {
-  return d.toISOString().slice(0,10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getWeekDates() {
@@ -745,17 +761,35 @@ function addEmployee() {
   const trimmed = name.trim();
   if (!isNameSafe(trimmed)) return;
   if (employees.includes(trimmed)) return;
+  saveCurrentWeek();
   employees.push(trimmed);
   saveMeta({ employees: employees.slice() });
+  const data = loadWeekData(document.getElementById('week-start').value);
   buildHoursTable();
+  if (data) {
+    Object.entries(data).forEach(([k, v]) => {
+      const el = qsel(k);
+      if (el) el.value = v;
+    });
+  }
+  updateHoursTotals();
   saveCurrentWeek();
   updateNotesCounter();
 }
 
 function removeEmployee(emp) {
+  saveCurrentWeek();
   employees = employees.filter(e => e !== emp);
   saveMeta({ employees: employees.slice() });
+  const data = loadWeekData(document.getElementById('week-start').value);
   buildHoursTable();
+  if (data) {
+    Object.entries(data).forEach(([k, v]) => {
+      const el = qsel(k);
+      if (el) el.value = v;
+    });
+  }
+  updateHoursTotals();
   saveCurrentWeek();
   updateNotesCounter();
 }
@@ -783,15 +817,69 @@ function buildInvoicesTable() {
     const tr = document.createElement('tr');
     let row = `<td class="row-label">${v}</td>`;
     DAYS().forEach((_, i) => {
-      row += `<td><input class="inp" type="number" inputmode="decimal" min="0" step="0.01"
+      row += `<td class="inv-day-cell">`;
+      row += `<input class="inp" type="number" inputmode="decimal" min="0" step="0.01"
         placeholder="0.00"
         data-key="inv_${v}_${i}"
         data-vendor="${v}"
-        data-day="${i}" /></td>`;
+        data-day="${i}" />`;
+      row += `<div class="inv-cell-toggle" id="invtog-${v}-${i}" style="display:none;">`;
+      row += `<input type="hidden" data-key="invpaid_${v}_${i}" value="" />`;
+      row += `<label class="inv-toggle">`;
+      row += `<input type="checkbox" class="inv-toggle-input" data-vendor="${v}" data-day="${i}" />`;
+      row += `<span class="inv-toggle-slider"></span>`;
+      row += `</label>`;
+      row += `<span class="inv-cell-toggle-label" id="invtogl-${v}-${i}">${t('unpaid')}</span>`;
+      row += `</div>`;
+      row += `</td>`;
     });
     row += `<td class="tot-cell" id="vtot-${v}">$0.00</td>`;
     tr.innerHTML = row;
     tbody.appendChild(tr);
+  });
+
+  // Show/hide toggles based on whether there's a value, and wire up events
+  tbody.querySelectorAll('.inv-day-cell .inp').forEach(inp => {
+    const v = inp.dataset.vendor;
+    const d = inp.dataset.day;
+    const toggleWrap = document.getElementById(`invtog-${v}-${d}`);
+    // Show toggle if input already has a value
+    if (inp.value && parseFloat(inp.value) > 0 && toggleWrap) {
+      toggleWrap.style.display = '';
+    }
+    inp.addEventListener('input', () => {
+      if (toggleWrap) {
+        const val = parseFloat(inp.value) || 0;
+        toggleWrap.style.display = val > 0 ? '' : 'none';
+        // Clear paid state if value removed
+        if (val <= 0) {
+          const hidden = qsel(`invpaid_${v}_${d}`);
+          const cb = toggleWrap.querySelector('.inv-toggle-input');
+          if (hidden) hidden.value = '';
+          if (cb) cb.checked = false;
+        }
+      }
+    });
+  });
+
+  // Wire up toggle checkboxes
+  tbody.querySelectorAll('.inv-toggle-input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const v = cb.dataset.vendor;
+      const d = cb.dataset.day;
+      const hidden = qsel(`invpaid_${v}_${d}`);
+      const label = document.getElementById(`invtogl-${v}-${d}`);
+      if (cb.checked) {
+        if (hidden) hidden.value = '1';
+        if (label) label.textContent = t('paid');
+      } else {
+        if (hidden) hidden.value = '';
+        if (label) label.textContent = t('unpaid');
+      }
+      saveCurrentWeek();
+      // Sync paid status to monthly inventory
+      syncPaidToMonthlyInvoice(v, parseInt(d), cb.checked);
+    });
   });
 
   // Totals row
@@ -811,6 +899,60 @@ function buildInvoicesTable() {
   totRow.appendChild(gtd);
 
   renderVendorActions();
+}
+
+/**
+ * Sync vendor paid toggle switches with their hidden input values.
+ * Called after applyState restores hidden input values from storage.
+ */
+function syncVendorPaidToggles() {
+  vendors.forEach(v => {
+    DAYS().forEach((_, i) => {
+      const hidden = qsel(`invpaid_${v}_${i}`);
+      if (!hidden) return;
+      const isPaid = hidden.value === '1';
+      const toggleWrap = document.getElementById(`invtog-${v}-${i}`);
+      const cb = toggleWrap ? toggleWrap.querySelector('.inv-toggle-input') : null;
+      const label = document.getElementById(`invtogl-${v}-${i}`);
+      if (cb) cb.checked = isPaid;
+      if (label) label.textContent = isPaid ? t('paid') : t('unpaid');
+      // Show toggle if corresponding input has a value
+      const inp = qsel(`inv_${v}_${i}`);
+      const val = inp ? (parseFloat(inp.value) || 0) : 0;
+      if (toggleWrap) toggleWrap.style.display = val > 0 ? '' : 'none';
+    });
+  });
+}
+
+/**
+ * Sync a paid/unpaid toggle change from daily sales to the monthly inventory.
+ * Finds the matching invoice entry (vendor + date) in the monthly data and updates it.
+ */
+function syncPaidToMonthlyInvoice(vendor, dayIndex, isPaid) {
+  try {
+    const dates = getWeekDates();
+    const dayDate = dates[dayIndex];
+    if (!dayDate) return;
+    const dateStr = dayDate.getFullYear() + '-' +
+      String(dayDate.getMonth() + 1).padStart(2, '0') + '-' +
+      String(dayDate.getDate()).padStart(2, '0');
+    const monthStr = dateStr.substring(0, 7); // YYYY-MM
+    const key = 'edr_inv_' + monthStr;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data.__invoices)) return;
+    let changed = false;
+    data.__invoices.forEach(inv => {
+      if (inv.vendor === vendor && inv.date === dateStr) {
+        inv.paid = isPaid;
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  } catch { /* ignore errors from cross-page sync */ }
 }
 
 function updateInvoicesTotals() {
@@ -922,10 +1064,20 @@ function confirmDeleteVendors() {
   const names = checked.map(cb => cb.dataset.vendor);
   const msg = t('confirmDeleteNames').replace('{names}', names.join(', '));
   if (!confirm(msg)) return;
+  saveCurrentWeek();
   vendors = vendors.filter(v => !names.includes(v));
   saveMeta({ vendors: vendors.slice() });
   vendorDeleteMode = false;
+  const data = loadWeekData(document.getElementById('week-start').value);
   buildInvoicesTable();
+  if (data) {
+    Object.entries(data).forEach(([k, v]) => {
+      const el = qsel(k);
+      if (el) el.value = v;
+    });
+  }
+  updateInvoicesTotals();
+  syncVendorPaidToggles();
   saveCurrentWeek();
   updateNotesCounter();
 }
@@ -936,17 +1088,39 @@ function addVendor() {
   const trimmed = name.trim();
   if (!isNameSafe(trimmed)) return;
   if (vendors.includes(trimmed)) return;
+  // Save current data before rebuilding
+  saveCurrentWeek();
   vendors.push(trimmed);
   saveMeta({ vendors: vendors.slice() });
+  // Rebuild and restore
+  const data = loadWeekData(document.getElementById('week-start').value);
   buildInvoicesTable();
+  if (data) {
+    Object.entries(data).forEach(([k, v]) => {
+      const el = qsel(k);
+      if (el) el.value = v;
+    });
+  }
+  updateInvoicesTotals();
+  syncVendorPaidToggles();
   saveCurrentWeek();
   updateNotesCounter();
 }
 
 function removeVendor(v) {
+  saveCurrentWeek();
   vendors = vendors.filter(x => x !== v);
   saveMeta({ vendors: vendors.slice() });
+  const data = loadWeekData(document.getElementById('week-start').value);
   buildInvoicesTable();
+  if (data) {
+    Object.entries(data).forEach(([k, val]) => {
+      const el = qsel(k);
+      if (el) el.value = val;
+    });
+  }
+  updateInvoicesTotals();
+  syncVendorPaidToggles();
   saveCurrentWeek();
   updateNotesCounter();
 }
@@ -980,7 +1154,7 @@ function buildExpensesTable() {
         data-expense="${ex}"
         data-day="${i}" /></td>`;
     });
-    row += `<td class="tot-cell" id="etot-${ex}">$0.00</td>`;
+    row += `<td class="tot-cell" id="extot-${ex}">$0.00</td>`;
     tr.innerHTML = row;
     tbody.appendChild(tr);
   });
@@ -1032,7 +1206,7 @@ function updateExpensesTotals() {
       const el = qsel(`exp_${ex}_${i}`);
       eSum += el ? (parseFloat(el.value) || 0) : 0;
     });
-    const td = document.getElementById(`etot-${ex}`);
+    const td = document.getElementById(`extot-${ex}`);
     if (td) td.textContent = fmt(eSum);
   });
   // Per-day column totals
@@ -1375,7 +1549,15 @@ function collectDataBase() {
     DAYS().forEach((_, i) => {
       const el = qsel(`inv_${vnd}_${i}`);
       const val = el ? (parseFloat(el.value) || 0) : 0;
-      if (val) out.inv[`${vnd}|${i}`] = val;
+      if (val) {
+        out.inv[`${vnd}|${i}`] = val;
+        // Include paid/unpaid status
+        const paidEl = qsel(`invpaid_${vnd}_${i}`);
+        if (paidEl && paidEl.value === '1') {
+          if (!out.invp) out.invp = {};
+          out.invp[`${vnd}|${i}`] = 1;
+        }
+      }
     });
   });
   cashExpenses.forEach(ex => {
@@ -1611,13 +1793,31 @@ function buildScreenshotClone(qrText) {
     const invClone = document.getElementById('invoices-table').cloneNode(true);
     forceEnglishClone(invClone);
     styleCloneTable(invClone);
-    invClone.querySelectorAll('input').forEach(inp => {
+    // Replace toggle divs with paid/unpaid text labels before replacing inputs
+    invClone.querySelectorAll('.inv-cell-toggle').forEach(tog => {
+      const hidden = tog.querySelector('[data-key]');
+      const isPaid = hidden && hidden.value === '1';
+      const isVisible = tog.style.display !== 'none';
+      if (isVisible) {
+        const label = document.createElement('span');
+        label.style.cssText = 'display:block;text-align:center;font-size:10px;font-weight:700;padding:2px 0;' + (isPaid ? 'color:#27ae60;' : 'color:#e74c3c;');
+        label.textContent = isPaid ? 'Paid' : 'Unpaid';
+        tog.parentNode.replaceChild(label, tog);
+      } else {
+        tog.remove();
+      }
+    });
+    // Now replace number inputs with formatted text
+    invClone.querySelectorAll('input[type="number"]').forEach(inp => {
       const span = document.createElement('span');
       const v = parseFloat(inp.value);
       span.textContent = isNaN(v) ? '–' : '$' + v.toFixed(2);
       span.style.cssText = 'display:block;text-align:right;font-size:13px;padding:4px;color:#1e1e2f;';
       inp.parentNode.replaceChild(span, inp);
     });
+    // Remove any remaining hidden inputs
+    invClone.querySelectorAll('input[type="hidden"]').forEach(el => el.remove());
+    invClone.querySelectorAll('input[type="checkbox"]').forEach(el => el.remove());
     invClone.querySelectorAll('.emp-check-cell').forEach(el => el.remove());
     wrap.appendChild(invClone);
   }
@@ -1743,11 +1943,15 @@ function styleCloneTable(tbl) {
 function saveQRDataToStorage(jsonStr) {
   const data = JSON.parse(jsonStr);
   if (!data.w) return false;
+  // Sanitize names from QR to prevent XSS
+  const sanitize = str => String(str).replace(/[<>"&]/g, '');
+  const sanitizeList = arr => (Array.isArray(arr) ? arr.map(sanitize) : []);
+
   const s = {};
   s['__weekStart'] = data.w;
-  if (data.e) s['__employees'] = data.e;
-  if (data.v) s['__vendors'] = data.v;
-  if (data.cx) s['__cashExpenses'] = data.cx;
+  if (data.e) s['__employees'] = sanitizeList(data.e);
+  if (data.v) s['__vendors'] = sanitizeList(data.v);
+  if (data.cx) s['__cashExpenses'] = sanitizeList(data.cx);
   if (Object.prototype.hasOwnProperty.call(data, 'coh')) s['coh_start'] = data.coh;
   if (data.s) {
     Object.entries(data.s).forEach(([k, v]) => {
@@ -1772,6 +1976,12 @@ function saveQRDataToStorage(jsonStr) {
     Object.entries(data.inv).forEach(([k, v]) => {
       const [vnd, day] = k.split('|');
       s[`inv_${vnd}_${day}`] = v;
+    });
+  }
+  if (data.invp) {
+    Object.entries(data.invp).forEach(([k, v]) => {
+      const [vnd, day] = k.split('|');
+      s[`invpaid_${vnd}_${day}`] = v ? '1' : '';
     });
   }
   if (data.exp) {
@@ -2016,6 +2226,7 @@ function setLanguage(lang) {
   updateInvoicesTotals();
   updateExpensesTotals();
   updateCashOnHand();
+  syncVendorPaidToggles();
   saveState();
   lucide.createIcons();
 }
@@ -2177,7 +2388,8 @@ function toggleInfoPopup() {
    EXPORT CSV
 ═══════════════════════════════════════════ */
 function csvEscape(val) {
-  const s = String(val);
+  let s = String(val);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   if (s.includes(',') || s.includes('"') || s.includes('\n')) {
     return '"' + s.replace(/"/g, '""') + '"';
   }
@@ -2254,39 +2466,26 @@ function exportCSV() {
     var _csvCohAfterVals = cohAfterVals;
   }
 
-  // --- Hours ---
-  if (employees.length > 0) {
-    rows.push('');
-    rows.push('EMPLOYEE HOURS');
-    rows.push(['Employee', ...enDays, 'Total Hrs', 'Salary'].map(csvEscape).join(','));
-    employees.forEach(emp => {
-      let empTotal = 0;
-      const hrs = enDays.map((_, i) => {
-        const el = qsel(`h_${emp}_${i}`);
-        const v = el ? (parseFloat(el.value) || 0) : 0;
-        empTotal += v;
-        return v;
-      });
-      const salEl = qsel(`sal_${emp}`);
-      const sal = salEl ? (parseFloat(salEl.value) || 0) : 0;
-      rows.push([csvEscape(emp), ...hrs, empTotal % 1 === 0 ? empTotal : empTotal.toFixed(1), sal.toFixed(2)].join(','));
-    });
-  }
-
   // --- Invoices ---
   if (vendors.length > 0) {
     rows.push('');
     rows.push('INVOICES');
-    rows.push(['Vendor', ...enDays, 'Total'].map(csvEscape).join(','));
+    // Header with day names
+    rows.push(['Vendor', ...enDays.map((d, i) => d + ' ' + formatDate(dates[i])), 'Total'].map(csvEscape).join(','));
+    // Sub-header showing "Amount / Status" for each day
+    rows.push(['', ...enDays.map(() => 'Amount / Status'), ''].map(csvEscape).join(','));
     vendors.forEach(v => {
       let vTotal = 0;
       const vals = enDays.map((_, i) => {
         const el = qsel(`inv_${v}_${i}`);
         const val = el ? (parseFloat(el.value) || 0) : 0;
         vTotal += val;
-        return val.toFixed(2);
+        if (val === 0) return '';
+        const paidEl = qsel(`invpaid_${v}_${i}`);
+        const isPaid = paidEl && paidEl.value === '1';
+        return val.toFixed(2) + (isPaid ? ' (Paid)' : ' (Unpaid)');
       });
-      rows.push([csvEscape(v), ...vals, vTotal.toFixed(2)].join(','));
+      rows.push([csvEscape(v), ...vals.map(csvEscape), vTotal.toFixed(2)].join(','));
     });
   }
 
@@ -2314,6 +2513,25 @@ function exportCSV() {
     rows.push('');
     rows.push('CASH ON HAND');
     rows.push(['Cash on Hand', ..._csvCohAfterVals, ''].join(','));
+  }
+
+  // --- Hours ---
+  if (employees.length > 0) {
+    rows.push('');
+    rows.push('EMPLOYEE HOURS');
+    rows.push(['Employee', ...enDays, 'Total Hrs', 'Salary'].map(csvEscape).join(','));
+    employees.forEach(emp => {
+      let empTotal = 0;
+      const hrs = enDays.map((_, i) => {
+        const el = qsel(`h_${emp}_${i}`);
+        const v = el ? (parseFloat(el.value) || 0) : 0;
+        empTotal += v;
+        return v;
+      });
+      const salEl = qsel(`sal_${emp}`);
+      const sal = salEl ? (parseFloat(salEl.value) || 0) : 0;
+      rows.push([csvEscape(emp), ...hrs, empTotal % 1 === 0 ? empTotal : empTotal.toFixed(1), sal.toFixed(2)].join(','));
+    });
   }
 
   // --- Notes ---
