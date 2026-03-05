@@ -350,8 +350,9 @@ function saveCurrentWeek() {
   document.querySelectorAll('[data-key]').forEach(el => {
     if (el.value && el.value !== '0') s[el.dataset.key] = el.value;
   });
-  // Save if there's any data OR if a week entry already exists (to allow clearing)
-  const hasData = Object.keys(s).length > 0 || localStorage.getItem(weekKey(ws)) !== null;
+  // Save if there's any data, custom sources, or if a week entry already exists (to allow clearing)
+  const customSources = JSON.stringify(salesSources) !== JSON.stringify(DEFAULT_SALES_SOURCES);
+  const hasData = Object.keys(s).length > 0 || customSources || localStorage.getItem(weekKey(ws)) !== null;
   if (hasData) {
     s['__weekStart'] = ws;
     s['__employees'] = employees.slice();
@@ -2501,19 +2502,7 @@ function init() {
 
     // Save the old week under the previous date
     if (currentWeekDate) {
-      const oldWs = currentWeekDate;
-      const s = {};
-      document.querySelectorAll('[data-key]').forEach(el => {
-        if (el.value && el.value !== '0') s[el.dataset.key] = el.value;
-      });
-      if (Object.keys(s).length > 0) {
-        s['__weekStart'] = oldWs;
-        s['__employees'] = employees.slice();
-        s['__vendors'] = vendors.slice();
-        s['__cashExpenses'] = cashExpenses.slice();
-        s['__salesSources'] = salesSources.slice();
-        localStorage.setItem(weekKey(oldWs), JSON.stringify(s));
-      }
+      saveCurrentWeek();
     }
 
     const newDate = document.getElementById('week-start').value;
