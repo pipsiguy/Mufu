@@ -980,6 +980,16 @@ function buildInvoicesTable() {
     const tr = document.createElement('tr');
     let row = `<td class="row-label">${v}</td>`;
     DAYS().forEach((_, i) => {
+      // Get paid state for this invoice from current week data
+      let paidVal = '';
+      let paidChecked = false;
+      let paidLabel = t('unpaid');
+      const paidInput = qsel(`invpaid_${v}_${i}`);
+      if (paidInput && paidInput.value === '1') {
+        paidVal = '1';
+        paidChecked = true;
+        paidLabel = t('paid');
+      }
       row += `<td class="inv-day-cell">`;
       row += `<input class="inp" type="number" inputmode="decimal" min="0" step="0.01"
         placeholder="0.00"
@@ -987,12 +997,12 @@ function buildInvoicesTable() {
         data-vendor="${v}"
         data-day="${i}" />`;
       row += `<div class="inv-cell-toggle" id="invtog-${v}-${i}" style="display:none;">`;
-      row += `<input type="hidden" data-key="invpaid_${v}_${i}" value="" />`;
+      row += `<input type="hidden" data-key="invpaid_${v}_${i}" value="${paidVal}" />`;
       row += `<label class="inv-toggle">`;
-      row += `<input type="checkbox" class="inv-toggle-input" data-vendor="${v}" data-day="${i}" />`;
+      row += `<input type="checkbox" class="inv-toggle-input" data-vendor="${v}" data-day="${i}"${paidChecked ? ' checked' : ''} />`;
       row += `<span class="inv-toggle-slider"></span>`;
       row += `</label>`;
-      row += `<span class="inv-cell-toggle-label" id="invtogl-${v}-${i}">${t('unpaid')}</span>`;
+      row += `<span class="inv-cell-toggle-label" id="invtogl-${v}-${i}">${paidLabel}</span>`;
       row += `</div>`;
       row += `</td>`;
     });
