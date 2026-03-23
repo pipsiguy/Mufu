@@ -26,6 +26,7 @@ const I18N = {
     subtitle: 'Easy Daily Report',
     weekStarting: 'Week starting:',
     generateSnapshot: 'Generate Snapshot',
+    generatePDF: 'Generate PDF',
     dailySales: 'Daily Sales',
     employeeHours: 'Employee Hours',
     day: 'Day',
@@ -40,13 +41,15 @@ const I18N = {
     working: 'Working…',
     snapshotSaved: '📸 Snapshot saved!',
     snapshotError: '⚠ Error generating snapshot',
+    pdfSaved: '📄 PDF saved!',
+    pdfError: '⚠ Error generating PDF',
     days: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
     daysShort: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
     weekOf: 'Week of',
     scanToRestore: 'Scan to restore',
     previousWeeks: 'Previous Weeks',
     uploadPastWeeks: 'Upload Past Weeks',
-    noSavedWeeks: 'No saved weeks yet. Enter data or upload past week snapshots.',
+    noSavedWeeks: 'No saved weeks yet. Enter data or upload past week snapshots/PDFs.',
     weekLoaded: '✅ Week loaded!',
     weekDeleted: '🗑 Week deleted',
     confirmDelete: 'Are you sure you want to delete this week?',
@@ -56,8 +59,9 @@ const I18N = {
     removeWhich: 'Select employee to remove:',
     cancel: 'Cancel',
     confirmDeleteNames: 'Delete the following?\n\n{names}',
-    bulkImported: '✅ Imported {n} week(s) from photos!',
-    bulkNone: '⚠ No QR codes found in the uploaded images',
+    bulkImported: '✅ Imported {n} week(s)!',
+    bulkNone: '⚠ No valid data found in uploaded files',
+    uploadSameWeekConflict: '⚠ You are uploading data for the current week while it already has input. Delete this week first, then try upload again.',
     totalSalesLabel: 'Total Sales',
     invoices: 'Invoices',
     vendor: 'Vendor',
@@ -75,10 +79,10 @@ const I18N = {
     editStoreName: 'Enter store name:',
     storeNameRequired: 'Please enter your store name before generating a snapshot:',
     salary: 'Salary',
-    infoMessage: 'All data is stored only on your device. If you delete the app, clear your storage, switch phones, or change browsers, your data will be lost. However, every snapshot includes a QR code \u2014 simply upload your snapshot photos here to restore all your previous weeks instantly.',
+    infoMessage: 'All data is stored only on your device. If you delete the app, clear your storage, switch phones, or change browsers, your data will be lost. You can restore past weeks by uploading snapshot images (QR) or exported PDF files.',
     notes: 'Notes',
     notesPlaceholder: 'Add notes for this week…',
-    qrTooLarge: '⚠ Data too large for QR code! Please reduce notes ({over} characters over limit).',
+    qrTooLarge: '⚠ Data too large for QR code! Please reduce notes ({over} characters over limit). Use Generate PDF instead.',
     notesRemaining: '{n} characters remaining for QR',
     deleteOldest10: 'Delete Oldest 10 Weeks',
     confirmDeleteOldest: 'This will permanently delete the 10 oldest weeks. Continue?',
@@ -106,6 +110,7 @@ const I18N = {
     subtitle: 'Easy Daily Report',
     weekStarting: '周起始日：',
     generateSnapshot: '生成快照',
+    generatePDF: '生成 PDF',
     dailySales: '每日销售',
     employeeHours: '员工工时',
     day: '日期',
@@ -120,13 +125,15 @@ const I18N = {
     working: '处理中…',
     snapshotSaved: '📸 快照已保存！',
     snapshotError: '⚠ 生成快照出错',
+    pdfSaved: '📄 PDF 已保存！',
+    pdfError: '⚠ 生成 PDF 出错',
     days: ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'],
     daysShort: ['一','二','三','四','五','六','日'],
     weekOf: '周报 –',
     scanToRestore: '扫描恢复',
     previousWeeks: '历史周报',
     uploadPastWeeks: '上传过去的周报',
-    noSavedWeeks: '暂无保存的周报。输入数据或上传过去的周报快照。',
+    noSavedWeeks: '暂无保存的周报。输入数据或上传过去的周报快照/PDF。',
     weekLoaded: '✅ 周报已加载！',
     weekDeleted: '🗑 周报已删除',
     confirmDelete: '确定要删除这个周报吗？',
@@ -136,8 +143,9 @@ const I18N = {
     removeWhich: '选择要删除的员工：',
     cancel: '取消',
     confirmDeleteNames: '删除以下内容？\n\n{names}',
-    bulkImported: '✅ 已从照片导入 {n} 个周报！',
-    bulkNone: '⚠ 上传的图片中未找到二维码',
+    bulkImported: '✅ 已导入 {n} 个周报！',
+    bulkNone: '⚠ 上传的文件中未找到有效数据',
+    uploadSameWeekConflict: '⚠ 你正在导入当前周的数据，但当前周已有输入。请先删除当前周，再重试上传。',
     totalSalesLabel: '总销售额',
     invoices: '发票',
     vendor: '供应商',
@@ -155,10 +163,10 @@ const I18N = {
     editStoreName: '输入店铺名称：',
     storeNameRequired: '生成快照前请先输入店铺名称：',
     salary: '工资',
-    infoMessage: '所有数据仅存储在您的设备上。如果您删除应用、清除存储、更换手机或更换浏览器，数据将会丢失。但每张快照都包含二维码 — 只需在此处上传快照照片，即可立即恢复所有以前的周报。',
+    infoMessage: '所有数据仅存储在您的设备上。如果您删除应用、清除存储、更换手机或更换浏览器，数据将会丢失。您可以通过上传快照图片（二维码）或导出的 PDF 文件来恢复过去的周报。',
     notes: '备注',
     notesPlaceholder: '添加本周备注…',
-    qrTooLarge: '⚠ 数据超出二维码容量！请减少备注（超出 {over} 个字符）。',
+    qrTooLarge: '⚠ 数据超出二维码容量！请减少备注（超出 {over} 个字符）。请改用生成 PDF。',
     notesRemaining: '二维码剩余 {n} 个字符',
     deleteOldest10: '删除最旧的10周',
     confirmDeleteOldest: '这将永久删除最旧的10个周报。继续？',
@@ -186,6 +194,7 @@ const I18N = {
     subtitle: 'Easy Daily Report',
     weekStarting: 'Semana iniciando:',
     generateSnapshot: 'Generar Captura',
+    generatePDF: 'Generar PDF',
     dailySales: 'Ventas Diarias',
     employeeHours: 'Horas de Empleados',
     day: 'Día',
@@ -200,13 +209,15 @@ const I18N = {
     working: 'Procesando…',
     snapshotSaved: '📸 ¡Captura guardada!',
     snapshotError: '⚠ Error al generar captura',
+    pdfSaved: '📄 ¡PDF guardado!',
+    pdfError: '⚠ Error al generar PDF',
     days: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],
     daysShort: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],
     weekOf: 'Semana del',
     scanToRestore: 'Escanear para restaurar',
     previousWeeks: 'Semanas Anteriores',
     uploadPastWeeks: 'Subir Semanas Pasadas',
-    noSavedWeeks: 'Aún no hay semanas guardadas. Ingrese datos o suba capturas de semanas pasadas.',
+    noSavedWeeks: 'Aún no hay semanas guardadas. Ingrese datos o suba capturas/PDF de semanas pasadas.',
     weekLoaded: '✅ ¡Semana cargada!',
     weekDeleted: '🗑 Semana eliminada',
     confirmDelete: '¿Estás seguro de que quieres eliminar esta semana?',
@@ -216,8 +227,9 @@ const I18N = {
     removeWhich: 'Seleccione el empleado a eliminar:',
     cancel: 'Cancelar',
     confirmDeleteNames: '¿Eliminar los siguientes?\n\n{names}',
-    bulkImported: '✅ ¡Se importaron {n} semana(s) desde fotos!',
-    bulkNone: '⚠ No se encontraron códigos QR en las imágenes subidas',
+    bulkImported: '✅ ¡Se importaron {n} semana(s)!',
+    bulkNone: '⚠ No se encontraron datos válidos en los archivos subidos',
+    uploadSameWeekConflict: '⚠ Estás subiendo datos para la semana actual y ya tiene información. Elimina primero esta semana y vuelve a subir.',
     totalSalesLabel: 'Ventas Totales',
     invoices: 'Facturas',
     vendor: 'Proveedor',
@@ -235,10 +247,10 @@ const I18N = {
     editStoreName: 'Ingrese el nombre de la tienda:',
     storeNameRequired: 'Ingrese el nombre de la tienda antes de generar la captura:',
     salary: 'Salario',
-    infoMessage: 'Todos los datos se almacenan solo en su dispositivo. Si elimina la aplicaci\u00f3n, borra el almacenamiento, cambia de tel\u00e9fono o de navegador, los datos se perder\u00e1n. Sin embargo, cada captura incluye un c\u00f3digo QR \u2014 simplemente suba las fotos de sus capturas aqu\u00ed para restaurar todas sus semanas anteriores al instante.',
+    infoMessage: 'Todos los datos se almacenan solo en su dispositivo. Si elimina la aplicación, borra el almacenamiento, cambia de teléfono o de navegador, los datos se perderán. Puede restaurar semanas pasadas subiendo imágenes de captura (QR) o archivos PDF exportados.',
     notes: 'Notas',
     notesPlaceholder: 'Agregar notas para esta semana…',
-    qrTooLarge: '⚠ ¡Datos demasiado grandes para el código QR! Reduzca las notas ({over} caracteres de más).',
+    qrTooLarge: '⚠ ¡Datos demasiado grandes para el código QR! Reduzca las notas ({over} caracteres de más). Use Generar PDF en su lugar.',
     notesRemaining: '{n} caracteres restantes para QR',
     deleteOldest10: 'Eliminar 10 Semanas Más Antiguas',
     confirmDeleteOldest: 'Esto eliminará permanentemente las 10 semanas más antiguas. ¿Continuar?',
@@ -1861,6 +1873,370 @@ async function generateSnapshot() {
   }
 }
 
+function encodeWeeklyDataBase64() {
+  const jsonStr = collectData();
+  return btoa(unescape(encodeURIComponent(jsonStr)));
+}
+
+async function generatePDFSnapshot() {
+  const defaults = [I18N.en.storeName, I18N.zh.storeName, I18N.es.storeName];
+  if (defaults.includes(storeName)) {
+    const name = prompt(t('storeNameRequired'));
+    if (!name || !name.trim()) return;
+    if (!isNameSafe(name.trim())) return;
+    storeName = name.trim();
+    document.getElementById('store-name').textContent = storeName;
+    saveMeta({ storeName });
+  }
+
+  const btn = document.getElementById('btn-pdf');
+  btn.disabled = true;
+  btn.textContent = t('working');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const m = { left: 10, right: 10, top: 10, bottom: 10 };
+    const usableW = pageWidth - m.left - m.right;
+    let y = m.top;
+
+    function ensure(h) {
+      if (y + h > pageHeight - m.bottom) {
+        doc.addPage();
+        y = m.top;
+      }
+    }
+
+    function sectionTitle(text) {
+      ensure(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(108, 99, 255);
+      doc.text(text, m.left, y + 4);
+      y += 5;
+      doc.setDrawColor(212, 216, 225);
+      doc.setLineWidth(0.25);
+      doc.line(m.left, y, m.left + usableW, y);
+      y += 2.5;
+    }
+
+    function fitText(text, maxW, fontSize) {
+      const raw = String(text ?? '');
+      if (!raw) return '';
+      doc.setFontSize(fontSize);
+      if (doc.getTextWidth(raw) <= maxW) return raw;
+      let s = raw;
+      while (s.length > 1 && doc.getTextWidth(s + '...') > maxW) s = s.slice(0, -1);
+      return s + '...';
+    }
+
+    function drawCellText(text, x, top, w, h, align, fs) {
+      const pad = 1.2;
+      const content = fitText(text, Math.max(1, w - pad * 2), fs);
+      const tx = align === 'right' ? x + w - pad : (align === 'center' ? x + w / 2 : x + pad);
+      const opts = align === 'right' || align === 'center' ? { align } : undefined;
+      doc.setFontSize(fs);
+      doc.text(content, tx, top + h * 0.62, opts);
+    }
+
+    function drawTable(columns, rows, opts) {
+      const rowH = opts && opts.rowH ? opts.rowH : 5.2;
+      const headH = opts && opts.headH ? opts.headH : 5.5;
+      const bodySize = opts && opts.bodySize ? opts.bodySize : 7.5;
+      const headSize = opts && opts.headSize ? opts.headSize : 7;
+      const totalRows = new Set((opts && opts.totalRows) || []);
+
+      const widths = columns.map(c => c.w);
+
+      function drawHeader() {
+        ensure(headH);
+        let x = m.left;
+        doc.setDrawColor(212, 216, 225);
+        doc.setFillColor(246, 247, 251);
+        doc.setTextColor(107, 113, 148);
+        doc.setFont('helvetica', 'bold');
+        columns.forEach((c, i) => {
+          doc.rect(x, y, widths[i], headH, 'FD');
+          drawCellText(c.label, x, y, widths[i], headH, c.align || 'left', headSize);
+          x += widths[i];
+        });
+        y += headH;
+      }
+
+      drawHeader();
+
+      rows.forEach((row, idx) => {
+        ensure(rowH);
+        if (y === m.top) drawHeader();
+        let x = m.left;
+        const isTotal = totalRows.has(idx);
+        doc.setDrawColor(226, 229, 238);
+        doc.setTextColor(isTotal ? 31 : 30, isTotal ? 168 : 30, isTotal ? 85 : 47);
+        doc.setFont('helvetica', isTotal ? 'bold' : 'normal');
+        columns.forEach((c, i) => {
+          doc.rect(x, y, widths[i], rowH);
+          drawCellText(row[i], x, y, widths[i], rowH, c.align || 'left', bodySize);
+          x += widths[i];
+        });
+        y += rowH;
+      });
+
+      y += 2.5;
+    }
+
+    // Header
+    const dates = getWeekDates();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(30, 30, 47);
+    doc.text(storeName, m.left, y + 5);
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(107, 113, 148);
+    doc.text(`${t('weekOf')} ${formatDate(dates[0])} - ${formatDate(dates[6])}`, m.left, y + 3);
+    y += 6;
+
+    const dShort = t('daysShort');
+
+    // Daily Sales (same row/col style as page)
+    sectionTitle(t('dailySales'));
+    {
+      const labelW = 30;
+      const totalW = 20;
+      const dayW = (usableW - labelW - totalW) / 7;
+      const cols = [
+        { label: t('salesSource'), w: labelW, align: 'left' },
+        ...dShort.map(d => ({ label: d, w: dayW, align: 'right' })),
+        { label: t('totals'), w: totalW, align: 'right' }
+      ];
+      const rows = [];
+      salesSources.forEach(src => {
+        let rowTotal = 0;
+        const row = [src];
+        DAYS().forEach((_, i) => {
+          const v = parseFloat((qsel(`s_${i}_${src}`) || {}).value) || 0;
+          rowTotal += v;
+          row.push(v ? `$${v.toFixed(2)}` : '$0.00');
+        });
+        row.push(`$${rowTotal.toFixed(2)}`);
+        rows.push(row);
+      });
+      const totals = [t('totals')];
+      let grand = 0;
+      DAYS().forEach((_, i) => {
+        let dayTotal = 0;
+        salesSources.forEach(src => {
+          dayTotal += parseFloat((qsel(`s_${i}_${src}`) || {}).value) || 0;
+        });
+        grand += dayTotal;
+        totals.push(`$${dayTotal.toFixed(2)}`);
+      });
+      totals.push(`$${grand.toFixed(2)}`);
+      rows.push(totals);
+      drawTable(cols, rows, { totalRows: [rows.length - 1] });
+    }
+
+    // Cash on hand before calculation
+    sectionTitle(t('cohBeforeCalc'));
+    {
+      const labelW = 36;
+      const dayW = (usableW - labelW) / 7;
+      const cols = [
+        { label: t('startingCash'), w: labelW, align: 'left' },
+        ...dShort.map(d => ({ label: d, w: dayW, align: 'right' }))
+      ];
+      const cohStartVal = parseFloat((document.getElementById('coh-start') || {}).value) || 0;
+      const row = [`$${cohStartVal.toFixed(2)}`];
+      for (let i = 0; i < 7; i++) {
+        const v = (document.getElementById(`coh-before-${i}`) || {}).textContent || '$0.00';
+        row.push(v);
+      }
+      drawTable(cols, [row], {});
+    }
+
+    // Invoices
+    sectionTitle(t('invoices'));
+    {
+      const labelW = 30;
+      const totalW = 20;
+      const dayW = (usableW - labelW - totalW) / 7;
+      const cols = [
+        { label: t('vendor'), w: labelW, align: 'left' },
+        ...dShort.map(d => ({ label: d, w: dayW, align: 'right' })),
+        { label: t('totals'), w: totalW, align: 'right' }
+      ];
+      const rows = [];
+      vendors.forEach(v => {
+        let rowTotal = 0;
+        const row = [v];
+        DAYS().forEach((_, i) => {
+          const amt = parseFloat((qsel(`inv_${v}_${i}`) || {}).value) || 0;
+          rowTotal += amt;
+          if (!amt) {
+            row.push('$0.00');
+          } else {
+            const paid = (qsel(`invpaid_${v}_${i}`) || {}).value === '1';
+            row.push(`$${amt.toFixed(2)} ${paid ? 'P' : 'U'}`);
+          }
+        });
+        row.push(`$${rowTotal.toFixed(2)}`);
+        rows.push(row);
+      });
+      const totals = [t('totals')];
+      let grand = 0;
+      DAYS().forEach((_, i) => {
+        let dayTotal = 0;
+        vendors.forEach(v => {
+          dayTotal += parseFloat((qsel(`inv_${v}_${i}`) || {}).value) || 0;
+        });
+        grand += dayTotal;
+        totals.push(`$${dayTotal.toFixed(2)}`);
+      });
+      totals.push(`$${grand.toFixed(2)}`);
+      rows.push(totals);
+      drawTable(cols, rows, { totalRows: [rows.length - 1], bodySize: 7 });
+    }
+
+    // Cash Expenses + Cash on Hand row
+    sectionTitle(t('cashExpenses'));
+    {
+      const labelW = 30;
+      const totalW = 20;
+      const dayW = (usableW - labelW - totalW) / 7;
+      const cols = [
+        { label: t('expense'), w: labelW, align: 'left' },
+        ...dShort.map(d => ({ label: d, w: dayW, align: 'right' })),
+        { label: t('totals'), w: totalW, align: 'right' }
+      ];
+      const rows = [];
+      cashExpenses.forEach(ex => {
+        let rowTotal = 0;
+        const row = [ex];
+        DAYS().forEach((_, i) => {
+          const v = parseFloat((qsel(`exp_${ex}_${i}`) || {}).value) || 0;
+          rowTotal += v;
+          row.push(v ? `$${v.toFixed(2)}` : '$0.00');
+        });
+        row.push(`$${rowTotal.toFixed(2)}`);
+        rows.push(row);
+      });
+      const totals = [t('totals')];
+      let grand = 0;
+      DAYS().forEach((_, i) => {
+        let dayTotal = 0;
+        cashExpenses.forEach(ex => {
+          dayTotal += parseFloat((qsel(`exp_${ex}_${i}`) || {}).value) || 0;
+        });
+        grand += dayTotal;
+        totals.push(`$${dayTotal.toFixed(2)}`);
+      });
+      totals.push(`$${grand.toFixed(2)}`);
+      rows.push(totals);
+
+      const cohRow = [t('cashOnHand')];
+      for (let i = 0; i < 7; i++) {
+        cohRow.push((document.getElementById(`coh-after-${i}`) || {}).textContent || '$0.00');
+      }
+      cohRow.push('');
+      rows.push(cohRow);
+      drawTable(cols, rows, { totalRows: [rows.length - 2, rows.length - 1] });
+    }
+
+    // Employee Hours
+    sectionTitle(t('employeeHours'));
+    {
+      const labelW = 34;
+      const totalW = 14;
+      const dayW = (usableW - labelW - totalW) / 7;
+      const cols = [
+        { label: t('employee'), w: labelW, align: 'left' },
+        ...dShort.map(d => ({ label: d, w: dayW, align: 'right' })),
+        { label: t('totalHrs'), w: totalW, align: 'right' }
+      ];
+      const rows = [];
+      employees.forEach(emp => {
+        let sum = 0;
+        const row = [emp];
+        DAYS().forEach((_, i) => {
+          const v = parseFloat((qsel(`h_${emp}_${i}`) || {}).value) || 0;
+          sum += v;
+          row.push(v ? String(v) : '0');
+        });
+        row.push(sum % 1 === 0 ? String(sum) : sum.toFixed(1));
+        rows.push(row);
+      });
+      drawTable(cols, rows, { bodySize: 7.2 });
+    }
+
+    // Notes
+    const notesEl = document.getElementById('week-notes');
+    const notes = notesEl ? notesEl.value.trim() : '';
+    if (notes) {
+      sectionTitle(t('notes'));
+      const lines = doc.splitTextToSize(notes, usableW - 2);
+      lines.forEach(line => {
+        ensure(4.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(30, 30, 47);
+        doc.text(line, m.left + 1, y + 3);
+        y += 4.2;
+      });
+      y += 2;
+    }
+
+    const encoded = encodeWeeklyDataBase64();
+    const chunks = encoded.match(/.{1,120}/g) || [];
+
+    // Keep machine-readable data on a separate page so text layout remains clean/selectable.
+    doc.addPage();
+    let payloadY = 14;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Restore Data Block (do not edit)', 12, payloadY);
+    payloadY += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text('EDR_JSON_BASE64_BEGIN', 12, payloadY);
+    payloadY += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(150, 150, 150);
+    chunks.forEach(chunk => {
+      if (payloadY > pageHeight - 12) {
+        doc.addPage();
+        payloadY = 12;
+      }
+      doc.text(chunk, 12, payloadY);
+      payloadY += 3.2;
+    });
+    if (payloadY > pageHeight - 12) {
+      doc.addPage();
+      payloadY = 12;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text('EDR_JSON_BASE64_END', 12, payloadY);
+
+    const weekVal = document.getElementById('week-start').value || 'week';
+    doc.save(`${storeName}-${weekVal}.pdf`);
+    showToast(t('pdfSaved'));
+  } catch (e) {
+    console.error(e);
+    showToast(t('pdfError') + ' (' + (e.message || e) + ')');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i data-lucide="file-text" style="width:18px;height:18px;"></i> <span data-i18n="generatePDF">${t('generatePDF')}</span>`;
+    lucide.createIcons();
+  }
+}
+
 /* Helper: always returns English translation */
 function tEn(key) { return I18N.en[key]; }
 
@@ -1887,7 +2263,9 @@ function forceEnglishClone(clone) {
   });
 }
 
-function buildScreenshotClone(qrText) {
+function buildScreenshotClone(qrText, opts) {
+  const options = opts || {};
+  const includeQR = options.includeQR !== false;
   const wrap = document.createElement('div');
   wrap.style.cssText = [
     'position:absolute','left:-9999px','top:0',
@@ -2087,8 +2465,8 @@ function buildScreenshotClone(qrText) {
   // Employee hours goes near the bottom of snapshot
   wrap.appendChild(hoursSection);
 
-  // ── QR code in its own dedicated section — English label ──
-  {
+  // ── QR code section (optional) ──
+  if (includeQR) {
     const qrSection = document.createElement('div');
     qrSection.style.cssText = [
       'margin-top:20px',
@@ -2229,16 +2607,51 @@ function triggerBulkUpload() {
   document.getElementById('bulk-file-input').click();
 }
 
+function hasCurrentWeekInputData() {
+  const fields = Array.from(document.querySelectorAll('[data-key]'));
+  for (const el of fields) {
+    const key = el.dataset.key || '';
+    const raw = (el.value || '').trim();
+    if (!raw) continue;
+
+    if (key === 'notes') return true;
+
+    const num = parseFloat(raw);
+    if (Number.isFinite(num)) {
+      if (num !== 0) return true;
+    } else {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function handleBulkFiles(e) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
 
   let imported = 0;
+  let blockedSameWeek = false;
+  const currentWeek = document.getElementById('week-start').value;
+  const hasCurrentData = hasCurrentWeekInputData();
 
   for (const file of files) {
     try {
-      const result = await decodeQRFromFile(file);
+      const isPDF = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      const result = isPDF ? await decodeDataFromPDFFile(file) : await decodeQRFromFile(file);
       if (result) {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(result);
+        } catch {
+          parsed = null;
+        }
+
+        if (parsed && parsed.w && parsed.w === currentWeek && hasCurrentData) {
+          blockedSameWeek = true;
+          continue;
+        }
+
         const saved = saveQRDataToStorage(result);
         if (saved) imported++;
       }
@@ -2249,11 +2662,16 @@ async function handleBulkFiles(e) {
 
   if (imported > 0) {
     enforceWeekLimit();
-    showToast(t('bulkImported').replace('{n}', imported));
     renderHistory();
     // Show the sidebar
     document.getElementById('history-panel').classList.add('open');
     document.getElementById('sidebar-overlay').classList.add('open');
+  }
+
+  if (blockedSameWeek) {
+    showToast(t('uploadSameWeekConflict'));
+  } else if (imported > 0) {
+    showToast(t('bulkImported').replace('{n}', imported));
   } else {
     showToast(t('bulkNone'));
   }
@@ -2310,6 +2728,45 @@ function decodeQRFromFile(file) {
     img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('load failed')); };
     img.src = URL.createObjectURL(file);
   });
+}
+
+async function extractTextFromPDFFile(file) {
+  if (typeof pdfjsLib === 'undefined') return '';
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(it => it.str).join('\n'));
+  }
+
+  return pages.join('\n');
+}
+
+async function decodeDataFromPDFFile(file) {
+  const text = await extractTextFromPDFFile(file);
+  if (!text) return null;
+
+  const begin = text.indexOf('EDR_JSON_BASE64_BEGIN');
+  const end = text.indexOf('EDR_JSON_BASE64_END');
+  if (begin < 0 || end < 0 || end <= begin) return null;
+
+  const block = text.slice(begin + 'EDR_JSON_BASE64_BEGIN'.length, end);
+  const b64 = block.replace(/[^A-Za-z0-9+/=]/g, '');
+  if (!b64) return null;
+
+  try {
+    return decodeURIComponent(escape(atob(b64)));
+  } catch {
+    return null;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -2623,6 +3080,7 @@ function init() {
 
   // Buttons
   document.getElementById('btn-snapshot').addEventListener('click', generateSnapshot);
+  document.getElementById('btn-pdf').addEventListener('click', generatePDFSnapshot);
 
   // History
   document.getElementById('btn-history').addEventListener('click', toggleHistoryPanel);

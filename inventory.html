@@ -14,12 +14,10 @@
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
-  <!-- html2canvas -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <!-- QRCode.js (generation) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- jsQR (decoding) -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!-- jsPDF (PDF generation) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- pdf.js (PDF reading for upload) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body translate="no">
 
@@ -62,19 +60,19 @@
 ══════════════════════════════════════════ -->
 <div class="actions inv-actions">
   <button class="btn btn-primary" id="btn-inv-snapshot">
-    <i data-lucide="camera" style="width:18px;height:18px;"></i>
-    <span data-i18n="generateSnapshot">Generate Snapshot</span>
+    <i data-lucide="file-text" style="width:18px;height:18px;"></i>
+    <span data-i18n="generateSnapshot">Export PDF</span>
   </button>
-  <button class="btn btn-secondary" id="btn-inv-upload-qr">
+  <button class="btn btn-secondary" id="btn-inv-upload-pdf">
     <i data-lucide="upload" style="width:18px;height:18px;"></i>
-    <span data-i18n="uploadQr">Upload QR</span>
+    <span data-i18n="uploadPdf">Upload PDF</span>
   </button>
   <button class="btn btn-secondary" id="btn-inv-history">
     <i data-lucide="history" style="width:18px;height:18px;"></i>
     <span data-i18n="previousMonths">Previous Months</span>
   </button>
 </div>
-<input type="file" id="inv-qr-file" accept="image/*" multiple style="display:none;" />
+<input type="file" id="inv-pdf-file" accept=".pdf" style="display:none;" />
 
 <!-- Search / Filter -->
 <div class="inv-search-bar">
@@ -140,7 +138,6 @@
 <div class="card inv-card" id="inv-notes-card">
   <h3 class="inv-card-title" data-i18n="invNotes">Notes</h3>
   <textarea class="inv-notes-box" id="inv-notes" placeholder="Add notes for this month…" data-i18n-placeholder="invNotesPlaceholder"></textarea>
-  <div class="notes-counter" id="inv-notes-counter"></div>
 </div>
 
 <div class="inv-bottom-actions">
@@ -180,11 +177,6 @@
     <span data-i18n="noSavedMonths">No saved months yet.</span>
   </div>
 </aside>
-
-<!-- QR / snapshot hidden container -->
-<div id="snapshot-wrap">
-  <div id="qr-corner"></div>
-</div>
 
 <!-- Toast notification -->
 <div id="toast"></div>

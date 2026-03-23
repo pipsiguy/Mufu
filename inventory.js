@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════
    Monthly Inventory – inventory.js
-   Categorised inventory, QR snapshot, LocalStorage
+   Categorised inventory, CSV export, LocalStorage
 ══════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════
@@ -9,8 +9,6 @@
 const INV_PREFIX = 'edr_inv_';       // per-month keys: edr_inv_2026-03
 const META_KEY   = 'edr_meta';
 const INV_CFG_KEY = 'edr_inv_cfg_v1';
-const QR_SIZE = 180;
-const QR_MAX_BYTES = 2900;  // QR capacity per code at EC Level L
 
 /* ═══════════════════════════════════════════
    INVENTORY DATA  (from inventory_items_price_units.txt)
@@ -161,8 +159,8 @@ const I18N = {
     monthPickerTitle: 'Select Year and Month',
     year: 'Year',
     apply: 'Apply',
-    generateSnapshot: 'Generate Snapshot',
-    uploadQr: 'Upload QR',
+    generateSnapshot: 'Export PDF',
+    uploadPdf: 'Upload PDF',
     addCategory: 'Add Category',
     previousMonths: 'Previous Months',
     addItem: 'Add Item',
@@ -190,12 +188,12 @@ const I18N = {
     monthDeleted: '🗑 Month deleted',
     confirmDelete: 'Are you sure you want to delete this month?',
     working: 'Working…',
-    snapshotSaved: '📸 Snapshot saved!',
-    snapshotError: '⚠ Error generating snapshot',
-    qrUploadSuccess: '✅ Inventory restored from QR',
-    qrUploadPartial: '⚠ Imported one QR part. Please upload the other part too.',
-    qrUploadNone: '⚠ No inventory QR found in image',
-    qrUploadError: '⚠ Error reading QR image',
+    snapshotSaved: '� PDF exported!',
+    snapshotError: '⚠ Error generating PDF',
+    pdfUploadSuccess: '✅ Inventory restored from PDF',
+    pdfUploadNone: '⚠ No inventory data found in PDF',
+    pdfUploadError: '⚠ Error reading PDF',
+    uploadSameMonthConflict: '⚠ You are uploading data for the current month while it already has input. Delete this month first, then try upload again.',
     categoryAdded: '✅ Category added',
     itemAdded: '✅ Item added',
     categoryDeleted: '🗑 Category deleted',
@@ -248,8 +246,6 @@ const I18N = {
     invNotesPlaceholder: 'Add notes for this month…',
     searchPlaceholder: 'Search items…',
     noSearchResults: 'No items match your search.',
-    notesRemaining: '{n} characters remaining for QR',
-    qrTooLarge: '⚠ Notes too large for QR! Please reduce ({over} bytes over limit).',
     exportCSV: 'Export CSV',
     csvHint: 'Download this month\u2019s inventory as a .csv file for Excel, Google Sheets, or Numbers.',
     csvSaved: '📄 CSV exported!',
@@ -261,8 +257,8 @@ const I18N = {
     monthPickerTitle: '选择年份和月份',
     year: '年份',
     apply: '应用',
-    generateSnapshot: '生成快照',
-    uploadQr: '上传二维码',
+    generateSnapshot: '导出 PDF',
+    uploadPdf: '上传 PDF',
     addCategory: '新增分类',
     previousMonths: '历史月份',
     addItem: '新增项目',
@@ -290,12 +286,12 @@ const I18N = {
     monthDeleted: '🗑 月份已删除',
     confirmDelete: '确定要删除这个月份吗？',
     working: '处理中…',
-    snapshotSaved: '📸 快照已保存！',
-    snapshotError: '⚠ 生成快照出错',
-    qrUploadSuccess: '✅ 已从二维码恢复库存',
-    qrUploadPartial: '⚠ 已导入一个二维码部分，请再上传另一个部分。',
-    qrUploadNone: '⚠ 图片中未识别到库存二维码',
-    qrUploadError: '⚠ 读取二维码图片出错',
+    snapshotSaved: '� PDF 已导出！',
+    snapshotError: '⚠ 生成 PDF 出错',
+    pdfUploadSuccess: '✅ 已从 PDF 恢复库存',
+    pdfUploadNone: '⚠ PDF 中未找到库存数据',
+    pdfUploadError: '⚠ 读取 PDF 出错',
+    uploadSameMonthConflict: '⚠ 你正在导入当前月份的数据，但当前月份已有输入。请先删除当前月份，再重试上传。',
     categoryAdded: '✅ 分类已添加',
     itemAdded: '✅ 项目已添加',
     categoryDeleted: '🗑 分类已删除',
@@ -348,8 +344,6 @@ const I18N = {
     invNotesPlaceholder: '添加本月备注…',
     searchPlaceholder: '搜索项目…',
     noSearchResults: '没有匹配的项目。',
-    notesRemaining: '二维码剩余 {n} 个字符',
-    qrTooLarge: '⚠ 备注超出二维码容量！请减少（超出 {over} 字节）。',
     exportCSV: '导出 CSV',
     csvHint: '将本月库存数据下载为 .csv 文件，可在 Excel、Google Sheets 或 Numbers 中打开。',
     csvSaved: '📄 CSV 已导出！',
@@ -361,8 +355,8 @@ const I18N = {
     monthPickerTitle: 'Seleccionar Año y Mes',
     year: 'Año',
     apply: 'Aplicar',
-    generateSnapshot: 'Generar Captura',
-    uploadQr: 'Subir QR',
+    generateSnapshot: 'Exportar PDF',
+    uploadPdf: 'Subir PDF',
     addCategory: 'Añadir Categoría',
     previousMonths: 'Meses Anteriores',
     addItem: 'Añadir Artículo',
@@ -390,12 +384,12 @@ const I18N = {
     monthDeleted: '🗑 Mes eliminado',
     confirmDelete: '¿Estás seguro de que quieres eliminar este mes?',
     working: 'Procesando…',
-    snapshotSaved: '📸 ¡Captura guardada!',
-    snapshotError: '⚠ Error al generar captura',
-    qrUploadSuccess: '✅ Inventario restaurado desde QR',
-    qrUploadPartial: '⚠ Se importó una parte del QR. Sube la otra parte también.',
-    qrUploadNone: '⚠ No se encontró QR de inventario en la imagen',
-    qrUploadError: '⚠ Error al leer la imagen QR',
+    snapshotSaved: '� ¡PDF exportado!',
+    snapshotError: '⚠ Error al generar PDF',
+    pdfUploadSuccess: '✅ Inventario restaurado desde PDF',
+    pdfUploadNone: '⚠ No se encontraron datos de inventario en el PDF',
+    pdfUploadError: '⚠ Error al leer el PDF',
+    uploadSameMonthConflict: '⚠ Estás subiendo datos para el mes actual y ya tiene información. Elimina primero este mes y vuelve a subir.',
     categoryAdded: '✅ Categoría añadida',
     itemAdded: '✅ Artículo añadido',
     categoryDeleted: '🗑 Categoría eliminada',
@@ -448,8 +442,6 @@ const I18N = {
     invNotesPlaceholder: 'Agregar notas para este mes…',
     searchPlaceholder: 'Buscar artículos…',
     noSearchResults: 'Ningún artículo coincide con tu búsqueda.',
-    notesRemaining: '{n} caracteres restantes para QR',
-    qrTooLarge: '⚠ ¡Notas demasiado grandes para QR! Reduzca ({over} bytes de más).',
     exportCSV: 'Exportar CSV',
     csvHint: 'Descargue el inventario de este mes como archivo .csv para Excel, Google Sheets o Numbers.',
     csvSaved: '📄 ¡CSV exportado!',
@@ -932,16 +924,14 @@ function buildInventory() {
       updateCategorySubtotal(inp.dataset.cat);
       updateGrandTotal();
       debouncedSave();
-      updateInvNotesCounter();
     });
   });
 
-  // Notes auto-save + counter
+  // Notes auto-save
   const notesBox = document.getElementById('inv-notes');
   if (notesBox) {
     notesBox.addEventListener('input', () => {
       debouncedSave();
-      updateInvNotesCounter();
     });
   }
 }
@@ -1023,66 +1013,6 @@ function initSearch() {
 }
 
 /* ═══════════════════════════════════════════
-   NOTES CHARACTER COUNTER (QR capacity aware)
-═══════════════════════════════════════════ */
-function byteLen(str) {
-  return new Blob([str]).size;
-}
-
-/** Calculate the total QR data size WITHOUT notes, across both codes */
-function getInvDataBaseSize() {
-  const ms = document.getElementById('inv-month').value || '';
-  const storeName = document.getElementById('store-name').textContent || '';
-  const entries = [];
-  document.querySelectorAll('.inv-qty').forEach(inp => {
-    const qty = parseFloat(inp.value) || 0;
-    if (qty) entries.push([inp.dataset.itemKey, qty]);
-  });
-
-  // Simulate the split without notes
-  const q1 = {}, q2 = {};
-  const base1 = JSON.stringify({ t: 'inv', p: '1/2', m: ms, s: storeName, q: {} }).length;
-  const base2 = JSON.stringify({ t: 'inv', p: '2/2', m: ms, s: storeName, q: {} }).length;
-  let size1 = base1, size2 = base2;
-
-  entries.forEach(([key, qty]) => {
-    const est = key.length + String(qty).length + 6;
-    if (size1 <= size2) { q1[key] = qty; size1 += est; }
-    else { q2[key] = qty; size2 += est; }
-  });
-
-  return { size1, size2 };
-}
-
-/** How many bytes of notes can still fit in QR part 2 */
-function getInvNotesRemaining() {
-  const { size1, size2 } = getInvDataBaseSize();
-  // Notes go in part 2 as ,"n":"..." → overhead ~7 bytes for the JSON wrapper
-  const overhead = 7;
-  // Total capacity is the minimum bottleneck of either code
-  // Part 1 just needs to fit; part 2 needs to fit data + notes
-  const availablePart2 = QR_MAX_BYTES - size2 - overhead;
-  return Math.max(0, availablePart2);
-}
-
-function updateInvNotesCounter() {
-  const counter = document.getElementById('inv-notes-counter');
-  if (!counter) return;
-  const remaining = getInvNotesRemaining();
-  const notesEl = document.getElementById('inv-notes');
-  const notesLen = notesEl ? byteLen(notesEl.value.trim()) : 0;
-  const left = remaining - notesLen;
-
-  if (left < 0) {
-    counter.textContent = t('qrTooLarge').replace('{over}', Math.abs(left));
-    counter.className = 'notes-counter over';
-  } else {
-    counter.textContent = t('notesRemaining').replace('{n}', left);
-    counter.className = 'notes-counter' + (left < 50 ? ' warn' : '');
-  }
-}
-
-/* ═══════════════════════════════════════════
    CALCULATIONS
 ═══════════════════════════════════════════ */
 function updateLineTotal(inp) {
@@ -1144,7 +1074,6 @@ function clearForm() {
   const searchEl = document.getElementById('inv-search');
   if (searchEl && searchEl.value) { searchEl.value = ''; applySearchFilter(''); }
   recalcAll();
-  updateInvNotesCounter();
 }
 
 function clearAllQuantities() {
@@ -1158,6 +1087,7 @@ function applyMonthData(data) {
   clearForm();
   if (data.__categories && Array.isArray(data.__categories)) {
     CATEGORIES = cloneCategories(data.__categories);
+    buildInventory();
   }
   if (data.__month) document.getElementById('inv-month').value = data.__month;
   Object.entries(data).forEach(([k, v]) => {
@@ -1177,7 +1107,6 @@ function applyMonthData(data) {
   const notesEl = document.getElementById('inv-notes');
   if (notesEl) notesEl.value = data.__notes || '';
   recalcAll();
-  updateInvNotesCounter();
 }
 
 function switchToMonth(monthStr) {
@@ -1338,216 +1267,8 @@ function openMonthPicker() {
 }
 
 /* ═══════════════════════════════════════════
-   QR + SNAPSHOT
+   PDF EXPORT & IMPORT
 ═══════════════════════════════════════════ */
-function gatherSnapshotData() {
-  const ms = document.getElementById('inv-month').value;
-  const storeName = document.getElementById('store-name').textContent || '';
-  const data = { t: 'inv', m: ms, s: storeName, q: {} };
-  document.querySelectorAll('.inv-qty').forEach(inp => {
-    const qty = parseFloat(inp.value) || 0;
-    if (qty) data.q[inp.dataset.itemKey] = qty;
-  });
-  return data;
-}
-
-/**
- * Split inventory QR data into two parts, dividing categories roughly in half.
- * Each part is self-describing with metadata so they can be scanned independently.
- */
-function gatherSnapshotDataSplit() {
-  const ms = document.getElementById('inv-month').value;
-  const storeName = document.getElementById('store-name').textContent || '';
-  const notesEl = document.getElementById('inv-notes');
-  const notes = notesEl ? notesEl.value.trim() : '';
-
-  // Collect non-zero quantities
-  const entries = [];
-  document.querySelectorAll('.inv-qty').forEach(inp => {
-    const qty = parseFloat(inp.value) || 0;
-    if (qty) entries.push([inp.dataset.itemKey, qty]);
-  });
-
-  // Byte-aware balancing so one QR doesn't become much denser than the other
-  const q1 = {};
-  const q2 = {};
-  const base1 = JSON.stringify({ t: 'inv', p: '1/2', m: ms, s: storeName, q: {} }).length;
-  const base2Obj = { t: 'inv', p: '2/2', m: ms, s: storeName, q: {} };
-  if (notes) base2Obj.n = '';
-  const base2 = JSON.stringify(base2Obj).length + byteLen(notes);
-  let size1 = base1;
-  let size2 = base2;
-
-  entries.forEach(([key, qty]) => {
-    const est = key.length + String(qty).length + 6;
-    if (size1 <= size2) {
-      q1[key] = qty;
-      size1 += est;
-    } else {
-      q2[key] = qty;
-      size2 += est;
-    }
-  });
-
-  // Ensure both parts have at least one key when possible
-  if (entries.length > 1 && Object.keys(q2).length === 0) {
-    const [moveKey, moveQty] = entries[entries.length - 1];
-    if (Object.prototype.hasOwnProperty.call(q1, moveKey)) {
-      delete q1[moveKey];
-      q2[moveKey] = moveQty;
-    }
-  }
-
-  return [
-    { t: 'inv', p: '1/2', m: ms, s: storeName, q: q1 },
-    Object.assign({ t: 'inv', p: '2/2', m: ms, s: storeName, q: q2 }, notes ? { n: notes } : {}),
-  ];
-}
-
-// Keep partial QR parts so users can upload 1/2 and 2/2 separately
-const INV_QR_PARTS = {};
-
-function fromQRText(str) {
-  if (!str || typeof str !== 'string') return '';
-  if (str.charAt(0) === '{') return str;
-  try {
-    return decodeURIComponent(escape(atob(str)));
-  } catch {
-    return str;
-  }
-}
-
-function parseInventoryQRPayload(text) {
-  const raw = fromQRText(text).trim();
-  if (!raw) return null;
-  try {
-    const obj = JSON.parse(raw);
-    if (!obj || obj.t !== 'inv' || typeof obj.q !== 'object') return null;
-    return obj;
-  } catch {
-    return null;
-  }
-}
-
-function decodeQRTextsFromImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(img.src);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-
-      const scans = [
-        [0, 0, canvas.width, canvas.height],
-        [0, 0, Math.floor(canvas.width / 2), canvas.height],
-        [Math.floor(canvas.width / 2), 0, Math.ceil(canvas.width / 2), canvas.height],
-        [0, 0, canvas.width, Math.floor(canvas.height / 2)],
-        [0, Math.floor(canvas.height / 2), canvas.width, Math.ceil(canvas.height / 2)],
-        [Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), Math.ceil(canvas.width / 2), Math.ceil(canvas.height / 2)],
-      ];
-
-      const found = new Set();
-      scans.forEach(([x, y, w, h]) => {
-        if (w < 20 || h < 20) return;
-        try {
-          const imgData = ctx.getImageData(x, y, w, h);
-          const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
-          if (code && code.data) found.add(code.data);
-        } catch {
-          // ignore individual region failures
-        }
-      });
-
-      resolve(Array.from(found));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      reject(new Error('load failed'));
-    };
-    img.src = URL.createObjectURL(file);
-  });
-}
-
-function applyImportedInventoryData(monthStr, quantities, notes) {
-  const targetMonth = monthStr || document.getElementById('inv-month').value;
-  const data = { __month: targetMonth };
-  Object.entries(quantities || {}).forEach(([k, v]) => {
-    const n = parseFloat(v);
-    if (Number.isFinite(n) && n !== 0) data[k] = n;
-  });
-  if (notes) data.__notes = notes;
-
-  applyMonthData(data);
-  _prevMonth = targetMonth;
-  saveCurrentMonth();
-  renderHistory();
-}
-
-async function handleInventoryQRUpload(e) {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-
-  try {
-    const payloads = [];
-    for (const file of files) {
-      const texts = await decodeQRTextsFromImage(file);
-      texts.forEach(txt => {
-        const payload = parseInventoryQRPayload(txt);
-        if (payload) payloads.push(payload);
-      });
-    }
-
-    if (!payloads.length) {
-      showToast(t('qrUploadNone'));
-      return;
-    }
-
-    let applied = false;
-    const fullPayload = payloads.find(p => !p.p);
-    if (fullPayload) {
-      applyImportedInventoryData(fullPayload.m, fullPayload.q, fullPayload.n);
-      applied = true;
-    }
-
-    const partPayloads = payloads.filter(p => p.p === '1/2' || p.p === '2/2');
-    if (partPayloads.length) {
-      const sample = partPayloads[0];
-      const cacheKey = `${sample.m || ''}|${sample.s || ''}`;
-      if (!INV_QR_PARTS[cacheKey]) INV_QR_PARTS[cacheKey] = {};
-      partPayloads.forEach(p => {
-        INV_QR_PARTS[cacheKey][p.p] = p.q || {};
-        if (p.n) INV_QR_PARTS[cacheKey]['2/2_notes'] = p.n;
-      });
-
-      const part1 = INV_QR_PARTS[cacheKey]['1/2'];
-      const part2 = INV_QR_PARTS[cacheKey]['2/2'];
-      if (part1 && part2) {
-        const merged = Object.assign({}, part1, part2);
-        // Extract notes from whichever part carries it
-        const notes = INV_QR_PARTS[cacheKey]['2/2_notes'] ||
-          partPayloads.find(p => p.n)?.n || '';
-        applyImportedInventoryData(sample.m, merged, notes);
-        delete INV_QR_PARTS[cacheKey];
-        applied = true;
-      } else if (!applied) {
-        showToast(t('qrUploadPartial'));
-        return;
-      }
-    }
-
-    if (applied) showToast(t('qrUploadSuccess'));
-    else showToast(t('qrUploadNone'));
-  } catch (err) {
-    console.error(err);
-    showToast(t('qrUploadError'));
-  } finally {
-    e.target.value = '';
-  }
-}
-
 async function generateSnapshot() {
   const btn = document.getElementById('btn-inv-snapshot');
   const origHTML = btn.innerHTML;
@@ -1557,39 +1278,48 @@ async function generateSnapshot() {
   try {
     saveCurrentMonth();
 
-    // Check QR capacity
-    const [qrCheck1, qrCheck2] = gatherSnapshotDataSplit();
-    const s1 = byteLen(JSON.stringify(qrCheck1));
-    const s2 = byteLen(JSON.stringify(qrCheck2));
-    if (s1 > QR_MAX_BYTES || s2 > QR_MAX_BYTES) {
-      const over = Math.max(s1 - QR_MAX_BYTES, s2 - QR_MAX_BYTES);
-      showToast(t('qrTooLarge').replace('{over}', over));
-      return;
-    }
-
-    // Build a temporary snapshot container
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:760px;background:#fff;padding:24px;font-family:Segoe UI,system-ui,sans-serif;color:#1e1e2f;';
-    document.body.appendChild(wrap);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
     const ms = document.getElementById('inv-month').value;
     const storeName = document.getElementById('store-name').textContent || '';
 
-    // Title
-    const title = document.createElement('div');
-    title.style.cssText = 'font-size:18px;font-weight:700;margin-bottom:4px;';
-    title.textContent = storeName;
-    wrap.appendChild(title);
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const ml = 15, mr = 15, mt = 15, mb = 15;
+    const cw = pw - ml - mr;
+    let y = mt;
 
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = 'font-size:13px;color:#6b7194;margin-bottom:16px;';
-    subtitle.textContent = `${t('inventoryOf')} ${formatMonth(ms)}`;
-    wrap.appendChild(subtitle);
+    function needPage(h) {
+      if (y + h > ph - mb) { doc.addPage(); y = mt; return true; }
+      return false;
+    }
 
-    const categorySnapshots = [];
+    // ── Title ──
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(108, 99, 255);
+    doc.text(storeName, ml, y + 5);
+    y += 9;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(107, 113, 148);
+    doc.text(`${t('inventoryOf')} ${formatMonth(ms)}`, ml, y + 3);
+    y += 5;
+
+    // Machine-readable month marker (light grey, small)
+    doc.setFontSize(7);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`Month: ${ms}`, ml, y + 2);
+    y += 7;
+
+    // ── Categories ──
+    let grandTotal = 0;
+
     CATEGORIES.forEach(cat => {
-      let catTotal = 0;
       const items = [];
+      let catTotal = 0;
       cat.items.forEach(item => {
         const key = itemKey(cat.id, item.id);
         const inp = document.querySelector(`.inv-qty[data-item-key="${CSS.escape(key)}"]`);
@@ -1600,153 +1330,173 @@ async function generateSnapshot() {
         if (qty > 0) items.push({ name: item.name, qty, price, unit: item.unit, lineTotal });
       });
 
-      if (items.length > 0) {
-        categorySnapshots.push({
-          label: getCategoryLabel(cat),
-          items,
-          catTotal,
-          weight: items.length + 2,
-        });
-      }
+      if (!items.length) return;
+      grandTotal += catTotal;
+
+      // Space check: header + at least 1 item + subtotal
+      needPage(22);
+
+      // Category header
+      const label = getCategoryLabel(cat);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(108, 99, 255);
+      doc.text(label.toUpperCase(), ml, y);
+      y += 1;
+      doc.setDrawColor(108, 99, 255);
+      doc.setLineWidth(0.3);
+      doc.line(ml, y, ml + cw, y);
+      y += 4;
+
+      // Column headers
+      const colPrice = ml + cw * 0.42;
+      const colQty = ml + cw * 0.68;
+      const colTotal = ml + cw;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text(t('item'), ml, y);
+      doc.text(t('price'), colPrice, y);
+      doc.text(t('qty'), colQty, y);
+      doc.text(t('lineTotal'), colTotal, y, { align: 'right' });
+      y += 1;
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.1);
+      doc.line(ml, y, ml + cw, y);
+      y += 3;
+
+      // Item rows
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 30, 47);
+      items.forEach(it => {
+        needPage(5);
+        doc.text(it.name, ml, y);
+        const priceStr = it.price ? `$${it.price.toFixed(2)}/${it.unit}` : t('na');
+        doc.text(priceStr, colPrice, y);
+        doc.text(`\u00d7${it.qty}`, colQty, y);
+        doc.text(`$${it.lineTotal.toFixed(2)}`, colTotal, y, { align: 'right' });
+        y += 4;
+      });
+
+      // Subtotal
+      y += 1;
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.1);
+      doc.line(ml + cw * 0.6, y, ml + cw, y);
+      y += 3;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(31, 168, 85);
+      doc.text(`${t('subtotal')}: $${catTotal.toFixed(2)}`, colTotal, y, { align: 'right' });
+      y += 7;
     });
 
-    const categoriesGrid = document.createElement('div');
-    categoriesGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;';
+    // ── Grand Total ──
+    needPage(12);
+    doc.setDrawColor(108, 99, 255);
+    doc.setLineWidth(0.5);
+    doc.line(ml, y, ml + cw, y);
+    y += 5;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(108, 99, 255);
+    doc.text(t('grandTotal'), ml, y);
+    doc.text(`$${grandTotal.toFixed(2)}`, ml + cw, y, { align: 'right' });
+    y += 8;
 
-    const leftCol = document.createElement('div');
-    leftCol.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
-    const rightCol = document.createElement('div');
-    rightCol.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+    // ── Invoices section ──
+    if (monthlyInvoices && monthlyInvoices.length > 0) {
+      needPage(20);
 
-    let leftWeight = 0;
-    let rightWeight = 0;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(108, 99, 255);
+      doc.text(t('monthlyInvoicesTitle').toUpperCase(), ml, y);
+      y += 1;
+      doc.setDrawColor(108, 99, 255);
+      doc.setLineWidth(0.3);
+      doc.line(ml, y, ml + cw, y);
+      y += 4;
 
-    categorySnapshots.forEach(catSnap => {
-      const card = document.createElement('div');
-      card.style.cssText = 'border:1px solid #d4d8e1;border-radius:10px;padding:10px 10px 8px;';
+      // Column headers
+      const invColDate = ml + cw * 0.48;
+      const invColAmt = ml + cw * 0.72;
+      const invColStatus = ml + cw;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text(t('vendor'), ml, y);
+      doc.text(t('invoiceDate'), invColDate, y);
+      doc.text(t('amount'), invColAmt, y);
+      doc.text(t('status'), invColStatus, y, { align: 'right' });
+      y += 1;
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.1);
+      doc.line(ml, y, ml + cw, y);
+      y += 3;
 
-      const catHeader = document.createElement('div');
-      catHeader.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6c63ff;margin-bottom:6px;border-bottom:1px solid #d4d8e1;padding-bottom:4px;';
-      catHeader.textContent = catSnap.label;
-      card.appendChild(catHeader);
-
-      catSnap.items.forEach(it => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;justify-content:space-between;font-size:11px;padding:2px 0;gap:8px;';
-        const left = document.createElement('span');
-        left.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        const priceStr = it.price ? `@$${it.price.toFixed(2)}/${it.unit}` : '';
-        left.textContent = `${it.name} × ${it.qty} ${priceStr}`;
-        const right = document.createElement('span');
-        right.style.cssText = 'font-weight:600;white-space:nowrap;';
-        right.textContent = `$${it.lineTotal.toFixed(2)}`;
-        row.appendChild(left);
-        row.appendChild(right);
-        card.appendChild(row);
+      const sorted = [...monthlyInvoices].sort((a, b) => {
+        const da = a.date || '\uffff';
+        const db = b.date || '\uffff';
+        return da < db ? -1 : da > db ? 1 : 0;
       });
 
-      const subRow = document.createElement('div');
-      subRow.style.cssText = 'text-align:right;font-size:11px;font-weight:700;color:#1fa855;margin-top:6px;padding-top:4px;border-top:1px dashed #d4d8e1;';
-      subRow.textContent = `${t('subtotal')}: $${catSnap.catTotal.toFixed(2)}`;
-      card.appendChild(subRow);
-
-      if (leftWeight <= rightWeight) {
-        leftCol.appendChild(card);
-        leftWeight += catSnap.weight;
-      } else {
-        rightCol.appendChild(card);
-        rightWeight += catSnap.weight;
-      }
-    });
-
-    categoriesGrid.appendChild(leftCol);
-    categoriesGrid.appendChild(rightCol);
-    wrap.appendChild(categoriesGrid);
-
-    // Grand total (sum category subtotals already computed above)
-    let grand = 0;
-    categorySnapshots.forEach(cs => { grand += cs.catTotal; });
-
-    const grandRow = document.createElement('div');
-    grandRow.style.cssText = 'margin-top:16px;padding-top:10px;border-top:2px solid #6c63ff;display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#6c63ff;';
-    grandRow.innerHTML = `<span>${t('grandTotal')}</span><span>$${grand.toFixed(2)}</span>`;
-    wrap.appendChild(grandRow);
-
-    // QR codes – split data across two codes
-    const [qrData1, qrData2] = gatherSnapshotDataSplit();
-
-    const qrRow = document.createElement('div');
-    qrRow.style.cssText = 'margin-top:16px;display:flex;justify-content:flex-end;gap:12px;';
-    wrap.appendChild(qrRow);
-
-    // Smaller size so two QR codes fit side by side reliably in the snapshot
-    const QR_DUAL_SIZE = 96;
-
-    // Helper to create a labeled QR block
-    function buildQRBlock(data, label) {
-      const block = document.createElement('div');
-      block.style.cssText = `display:flex;flex-direction:column;align-items:center;width:${QR_DUAL_SIZE}px;flex-shrink:0;`;
-
-      const container = document.createElement('div');
-      container.style.cssText = `width:${QR_DUAL_SIZE}px;height:${QR_DUAL_SIZE}px;overflow:hidden;`;
-      block.appendChild(container);
-
-      new QRCode(container, {
-        text: JSON.stringify(data),
-        width: QR_DUAL_SIZE,
-        height: QR_DUAL_SIZE,
-        correctLevel: QRCode.CorrectLevel.L,
+      let invTotal = 0;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      sorted.forEach(inv => {
+        needPage(5);
+        invTotal += inv.amount;
+        doc.setTextColor(30, 30, 47);
+        doc.text(inv.vendor || '', ml, y);
+        doc.text(inv.date || '', invColDate, y);
+        doc.text(`$${inv.amount.toFixed(2)}`, invColAmt, y);
+        if (inv.paid) { doc.setTextColor(31, 168, 85); } else { doc.setTextColor(229, 62, 62); }
+        doc.text(inv.paid ? t('paid') : t('unpaid'), invColStatus, y, { align: 'right' });
+        y += 4;
       });
 
-      // Force the generated QR element to stay within bounds (canvas/img/table fallback)
-      const rendered = container.querySelectorAll('canvas, img, table');
-      rendered.forEach(el => {
-        el.style.width = QR_DUAL_SIZE + 'px';
-        el.style.height = QR_DUAL_SIZE + 'px';
-        el.style.display = 'block';
-      });
-
-      const lbl = document.createElement('div');
-      lbl.style.cssText = 'font-size:10px;color:#6b7194;margin-top:4px;text-align:center;font-weight:600;';
-      lbl.textContent = label;
-      block.appendChild(lbl);
-
-      return block;
+      // Invoice total
+      y += 1;
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.1);
+      doc.line(ml + cw * 0.6, y, ml + cw, y);
+      y += 3;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(108, 99, 255);
+      doc.text(`${t('monthlyInvoicesTotal')}: $${invTotal.toFixed(2)}`, ml + cw, y, { align: 'right' });
+      y += 7;
     }
 
-    qrRow.appendChild(buildQRBlock(qrData1, '1 / 2'));
-    qrRow.appendChild(buildQRBlock(qrData2, '2 / 2'));
+    // ── Notes section ──
+    const notesEl = document.getElementById('inv-notes');
+    const notesText = notesEl ? notesEl.value.trim() : '';
+    if (notesText) {
+      needPage(15);
 
-    const qrDisclaimer = document.createElement('div');
-    qrDisclaimer.style.cssText = 'margin-top:8px;font-size:10px;color:#6b7194;text-align:right;line-height:1.35;';
-    qrDisclaimer.textContent = 'These 2 QR codes are for the Inventory page only because a large amount of inventory data must be stored.';
-    wrap.appendChild(qrDisclaimer);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(108, 99, 255);
+      doc.text(t('invNotes').toUpperCase(), ml, y);
+      y += 1;
+      doc.setDrawColor(108, 99, 255);
+      doc.setLineWidth(0.3);
+      doc.line(ml, y, ml + cw, y);
+      y += 4;
 
-    // Give QRCode.js time to render, then force-resize generated elements
-    await new Promise(r => setTimeout(r, 200));
-    qrRow.querySelectorAll('canvas, img, table').forEach(el => {
-      el.style.width = QR_DUAL_SIZE + 'px';
-      el.style.height = QR_DUAL_SIZE + 'px';
-      el.style.display = 'block';
-    });
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 30, 47);
+      const wrappedLines = doc.splitTextToSize(notesText, cw);
+      wrappedLines.forEach(line => {
+        needPage(4);
+        doc.text(line, ml, y);
+        y += 3.5;
+      });
+    }
 
-    // Final wait for rendering to stabilize
-    await new Promise(r => setTimeout(r, 300));
-
-    const canvas = await html2canvas(wrap, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-    });
-
-    document.body.removeChild(wrap);
-
-    // Save as image
-    const link = document.createElement('a');
-    link.download = `inventory_${ms}_${storeName.replace(/\s+/g,'_')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-
+    // Save
+    doc.save(`inventory_${ms}_${storeName.replace(/\s+/g, '_')}.pdf`);
     showToast(t('snapshotSaved'));
   } catch (err) {
     console.error(err);
@@ -1757,6 +1507,273 @@ async function generateSnapshot() {
     if (window.lucide) lucide.createIcons();
   }
 }
+
+/* ── PDF Upload: text extraction ── */
+async function extractTextFromPDF(file) {
+  if (typeof pdfjsLib !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const allLines = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+
+    // Collect items with positions
+    const items = content.items
+      .filter(it => it.str.trim())
+      .map(it => ({
+        text: it.str,
+        x: Math.round(it.transform[4] * 10) / 10,
+        y: Math.round(it.transform[5] * 10) / 10
+      }));
+
+    if (!items.length) continue;
+
+    // Sort by Y descending (PDF y-axis is bottom-up), then X ascending
+    items.sort((a, b) => b.y - a.y || a.x - b.x);
+
+    // Group into lines: items within 2 units of Y are the same line
+    let currentY = items[0].y;
+    let currentLine = [items[0]];
+
+    for (let i = 1; i < items.length; i++) {
+      if (Math.abs(items[i].y - currentY) <= 2) {
+        currentLine.push(items[i]);
+      } else {
+        currentLine.sort((a, b) => a.x - b.x);
+        allLines.push(currentLine.map(it => it.text).join('  '));
+        currentLine = [items[i]];
+        currentY = items[i].y;
+      }
+    }
+    if (currentLine.length) {
+      currentLine.sort((a, b) => a.x - b.x);
+      allLines.push(currentLine.map(it => it.text).join('  '));
+    }
+  }
+  return allLines;
+}
+
+/* ── PDF Upload: parse extracted lines into inventory data ── */
+function parseInventoryFromLines(lines) {
+  let month = '';
+  const reconstructedCats = []; // [{name, items: [{name, price, unit, qty}]}]
+  const invoices = [];
+  const notesLines = [];
+
+  let section = 'header'; // 'header' | 'category' | 'invoices' | 'notes'
+  let currentCat = null;
+
+  // Detect invoices header (multi-language)
+  function isInvoiceHeader(text) {
+    const u = text.trim().toUpperCase();
+    return u.includes('MONTHLY INVOICES') || u.includes('月度发票') || u.includes('FACTURAS MENSUALES');
+  }
+
+  // Detect notes header (multi-language)
+  function isNotesHeader(text) {
+    const u = text.trim().toUpperCase();
+    return u === 'NOTES' || u === '备注' || u === 'NOTAS';
+  }
+
+  // Skip known non-category lines (column headers, totals, etc.)
+  function isSkipLine(text) {
+    return /^(Item|Price|Qty|Total|Subtotal|Grand|项目|价格|数量|合计|小计|总计|Art[ií]culo|Precio|Cant|Total General)/i.test(text);
+  }
+
+  // Detect category headers: all-uppercase lines that aren't other known sections
+  function isCategoryHeader(text) {
+    const t = text.trim();
+    if (t.length < 2) return false;
+    if (/[\u00d7]/.test(t)) return false;        // item rows have ×
+    if (/\$\d/.test(t)) return false;             // prices/totals have $
+    if (isSkipLine(t)) return false;
+    if (/^Month:/i.test(t)) return false;
+    // Must contain at least 2 letters/CJK chars
+    if (!/[a-zA-Z\u4e00-\u9fff\u00c0-\u024f].*[a-zA-Z\u4e00-\u9fff\u00c0-\u024f]/.test(t)) return false;
+    // Must be all-uppercase (CJK and symbols are case-neutral so pass)
+    return t === t.toUpperCase();
+  }
+
+  // Convert "ALL CAPS" to "Title Case" for display
+  function pdfTitleCase(str) {
+    return str.toLowerCase().split(/\s+/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue;
+
+    // Month line (e.g. "Month: 2026-03")
+    const monthMatch = trimmed.match(/Month:\s*(\d{4}-\d{2})/);
+    if (monthMatch) { month = monthMatch[1]; continue; }
+
+    // Section headers — check order: notes, invoices
+    if (isNotesHeader(trimmed)) { section = 'notes'; continue; }
+    if (isInvoiceHeader(trimmed)) { section = 'invoices'; continue; }
+
+    // Category detection — only after Month marker is found (skips store title / subtitle)
+    if (month && (section === 'header' || section === 'category')) {
+      if (isCategoryHeader(trimmed)) {
+        currentCat = { name: pdfTitleCase(trimmed), items: [] };
+        reconstructedCats.push(currentCat);
+        section = 'category';
+        continue;
+      }
+    }
+
+    // ── Parse category items ──
+    if (section === 'category' && currentCat) {
+      if (isSkipLine(trimmed)) continue;
+      // Look for ×qty pattern (× = \u00d7)
+      const qtyMatch = trimmed.match(/[\u00d7x]([\d.]+)/i);
+      if (qtyMatch) {
+        const qty = parseFloat(qtyMatch[1]);
+        const parts = trimmed.split(/\s{2,}/);
+        const itemName = (parts[0] || '').trim();
+
+        // Extract price and unit from price column (e.g. "$5.21/lbs" or "N/A")
+        let price = null;
+        let unit = '';
+        const priceCol = (parts[1] || '').trim();
+        const priceMatch = priceCol.match(/\$([\d.]+)\/(.*)/);
+        if (priceMatch) {
+          price = parseFloat(priceMatch[1]);
+          unit = priceMatch[2].trim();
+        }
+
+        if (itemName && qty > 0) {
+          currentCat.items.push({ name: itemName, price, unit, qty });
+        }
+      }
+    }
+
+    // ── Parse invoices ──
+    if (section === 'invoices') {
+      // Skip column headers and total lines
+      if (/^(Vendor|Date|Amount|Status|供应商|日期|金额|状态|Proveedor|Fecha|Monto|Estado)/i.test(trimmed)) continue;
+      if (/^(Monthly Invoices|月度发票|Total Facturas)/i.test(trimmed)) continue;
+
+      // Look for date pattern + dollar amount on same line
+      const dateMatch = trimmed.match(/(\d{4}-\d{2}-\d{2})/);
+      const amountMatch = trimmed.match(/\$([\d,.]+)/);
+      const paidMatch = trimmed.match(/(Paid|Unpaid|已付|未付|Pagado|No pagado)/i);
+
+      if (dateMatch && amountMatch) {
+        const vendorEnd = trimmed.indexOf(dateMatch[1]);
+        const vendor = trimmed.substring(0, vendorEnd).trim().replace(/\s{2,}/g, ' ');
+        invoices.push({
+          vendor,
+          date: dateMatch[1],
+          amount: parseFloat(amountMatch[1].replace(/,/g, '')),
+          paid: paidMatch ? /^(Paid|已付|Pagado)$/i.test(paidMatch[1]) : false
+        });
+      }
+    }
+
+    // ── Parse notes ──
+    if (section === 'notes') {
+      notesLines.push(trimmed);
+    }
+  }
+
+  return { month, categories: reconstructedCats, invoices, notes: notesLines.join('\n') };
+}
+
+/* ── PDF Upload handler ── */
+function hasCurrentInventoryInputData() {
+  const hasQty = Array.from(document.querySelectorAll('.inv-qty')).some(inp => (parseFloat(inp.value) || 0) !== 0);
+  if (hasQty) return true;
+
+  const notesEl = document.getElementById('inv-notes');
+  if (notesEl && notesEl.value.trim()) return true;
+
+  const hasInvoices = Array.isArray(monthlyInvoices) && monthlyInvoices.some(inv => {
+    const amount = parseFloat(inv.amount) || 0;
+    return amount !== 0 || !!(inv.vendor && String(inv.vendor).trim()) || !!(inv.date && String(inv.date).trim());
+  });
+
+  return hasInvoices;
+}
+
+async function handlePDFUpload(e) {
+  const file = (e.target.files || [])[0];
+  e.target.value = '';
+  if (!file) return;
+
+  try {
+    const lines = await extractTextFromPDF(file);
+    const parsed = parseInventoryFromLines(lines);
+
+    if (!parsed.month && parsed.categories.length === 0) {
+      showToast(t('pdfUploadNone'));
+      return;
+    }
+
+    const currentMonth = document.getElementById('inv-month').value;
+    const targetMonth = parsed.month || currentMonth;
+
+    if (targetMonth === currentMonth && hasCurrentInventoryInputData()) {
+      showToast(t('uploadSameMonthConflict'));
+      return;
+    }
+
+    const data = { __month: targetMonth };
+
+    // Rebuild categories from PDF content
+    if (parsed.categories.length > 0) {
+      const rawCats = parsed.categories.map(cat => ({
+        name: cat.name,
+        labelKey: null,
+        items: cat.items.map(it => ({
+          name: it.name,
+          price: it.price,
+          unit: it.unit,
+        }))
+      }));
+      const normalizedCats = normalizeCategories(rawCats);
+      data.__categories = normalizedCats;
+
+      // Map quantities using normalized IDs (index correspondence is preserved)
+      normalizedCats.forEach((cat, ci) => {
+        cat.items.forEach((item, ii) => {
+          const qty = parsed.categories[ci]?.items[ii]?.qty || 0;
+          if (qty > 0) data[itemKey(cat.id, item.id)] = qty;
+        });
+      });
+    } else {
+      // No categories in PDF — keep current structure
+      data.__categories = JSON.parse(JSON.stringify(CATEGORIES));
+    }
+
+    if (parsed.notes) data.__notes = parsed.notes;
+    if (parsed.invoices.length) data.__invoices = parsed.invoices;
+
+    // Switch to target month if needed
+    if (targetMonth !== document.getElementById('inv-month').value) {
+      saveCurrentMonth();
+      document.getElementById('inv-month').value = targetMonth;
+    }
+
+    applyMonthData(data);
+    _prevMonth = targetMonth;
+    saveCurrentMonth();
+    saveCategoriesConfig();
+    renderHistory();
+
+    showToast(t('pdfUploadSuccess'));
+  } catch (err) {
+    console.error('PDF upload error:', err);
+    showToast(t('pdfUploadError'));
+  }
+}
+
 
 /* ═══════════════════════════════════════════
    TOAST
@@ -1930,7 +1947,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Try to load existing data for this month
   const existing = loadMonthData(defaultMonth);
   if (existing) applyMonthData(existing);
-  else updateInvNotesCounter();
 
   // Lang buttons
   document.querySelectorAll('.lang-btn').forEach(b => {
@@ -1969,14 +1985,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Snapshot button
+  // Export PDF button
   document.getElementById('btn-inv-snapshot').addEventListener('click', generateSnapshot);
 
-  // Upload QR button
-  document.getElementById('btn-inv-upload-qr').addEventListener('click', () => {
-    document.getElementById('inv-qr-file').click();
+  // Upload PDF button + file input
+  document.getElementById('btn-inv-upload-pdf').addEventListener('click', () => {
+    document.getElementById('inv-pdf-file').click();
   });
-  document.getElementById('inv-qr-file').addEventListener('change', handleInventoryQRUpload);
+  document.getElementById('inv-pdf-file').addEventListener('change', handlePDFUpload);
 
   // Clear all button (bottom)
   document.getElementById('btn-inv-clear-all').addEventListener('click', clearAllQuantities);

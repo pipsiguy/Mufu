@@ -14,6 +14,10 @@
   <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
   <!-- html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- jsPDF (PDF generation) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- pdf.js (PDF upload reading) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- QRCode.js (generation) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- zbar-wasm (scanning) – replaces jsQR, handles high-density QR codes -->
@@ -68,6 +72,10 @@
     <i data-lucide="camera" style="width:18px;height:18px;"></i>
     <span data-i18n="generateSnapshot">Generate Snapshot</span>
   </button>
+  <button class="btn btn-secondary" id="btn-pdf">
+    <i data-lucide="file-text" style="width:18px;height:18px;"></i>
+    <span data-i18n="generatePDF">Generate PDF</span>
+  </button>
   <button class="btn btn-secondary" id="btn-history">
     <i data-lucide="history" style="width:18px;height:18px;"></i>
     <span data-i18n="previousWeeks">Previous Weeks</span>
@@ -80,7 +88,7 @@
     </span>
   </button>
 </div>
-<input type="file" id="bulk-file-input" accept="image/*" multiple />
+<input type="file" id="bulk-file-input" accept="image/*,.pdf,application/pdf" multiple />
 
 <!-- Info popup -->
 <div class="info-overlay" id="info-overlay"></div>
