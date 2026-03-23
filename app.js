@@ -2264,21 +2264,48 @@ async function handleBulkFiles(e) {
 function decodeQRFromFile(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       URL.revokeObjectURL(img.src);
-      const canvas = document.createElement('canvas');
-      canvas.width  = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
-      if (code) {
-        // Decode QR text (base64 or raw JSON)
-        resolve(fromQRText(code.data));
-      } else {
-        resolve(null);
+      const W = img.naturalWidth, H = img.naturalHeight;
+
+      // Helper: scan a crop region with zbar-wasm
+      async function scanCrop(x, y, w, h) {
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
+        const d = c.getContext('2d').getImageData(0, 0, w, h);
+        const results = await zbarWasm.scanImageData(d);
+        return results.length > 0 ? results[0].decode() : null;
       }
+
+      // Use zbar-wasm with progressive crop strategy (QR is usually at bottom of screenshot)
+      if (typeof zbarWasm !== 'undefined' && typeof zbarWasm.scanImageData === 'function') {
+        try {
+          const crops = [
+            [0, 0, W, H],                                             // full image
+            [0, Math.floor(H * 0.6), Math.floor(W * 0.5), Math.floor(H * 0.4)],  // bottom-left 40%
+            [Math.floor(W * 0.5), Math.floor(H * 0.6), Math.floor(W * 0.5), Math.floor(H * 0.4)], // bottom-right 40%
+            [0, Math.floor(H / 2), W, Math.floor(H / 2)],            // bottom half
+            [0, Math.floor(H * 0.75), W, Math.floor(H * 0.25)],      // bottom 25%
+          ];
+          for (const [cx, cy, cw, ch] of crops) {
+            if (cw < 50 || ch < 50) continue;
+            const text = await scanCrop(cx, cy, cw, ch);
+            if (text) { resolve(fromQRText(text)); return; }
+          }
+        } catch(e) { /* fall through */ }
+      }
+
+      // Fallback: jsQR (if loaded)
+      if (typeof jsQR === 'function') {
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        c.getContext('2d').drawImage(img, 0, 0);
+        const d = c.getContext('2d').getImageData(0, 0, W, H);
+        const code = jsQR(d.data, W, H, { inversionAttempts: 'attemptBoth' });
+        if (code) { resolve(fromQRText(code.data)); return; }
+      }
+      resolve(null);
     };
     img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('load failed')); };
     img.src = URL.createObjectURL(file);
@@ -2650,9 +2677,11 @@ function csvEscape(val) {
 }
 
 function exportCSV() {
+  try {
   const dates = getWeekDates();
   const enDays = I18N.en.daysShort;
   const rows = [];
+  const safeStoreName = String(storeName || 'report').replace(/[\\/:*?"<>|]/g, '-').trim() || 'report';
 
   // Header
   rows.push(storeName + ' \u2013 Week of ' + formatDate(dates[0]) + ' \u2013 ' + formatDate(dates[6]));
@@ -2703,7 +2732,8 @@ function exportCSV() {
       const cashIncome = cashEl ? (parseFloat(cashEl.value) || 0) : 0;
       let dayExp = 0;
       cashExpenses.forEach(ex => {
-        dayExp += parseFloat(weekData[`exp_${ex}_${i}`]) || 0;
+        const expEl = qsel(`exp_${ex}_${i}`);
+        dayExp += expEl ? (parseFloat(expEl.value) || 0) : 0;
       });
       const cohAfter = cohBefore + cashIncome - dayExp;
       cohAfterVals.push(cohAfter.toFixed(2));
@@ -2797,11 +2827,21 @@ function exportCSV() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const weekVal = document.getElementById('week-start').value || 'week';
-  link.download = `${storeName}-${weekVal}.csv`;
-  link.href = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
+  link.download = `${safeStoreName}-${weekVal}.csv`;
+  link.href = url;
+  link.style.display = 'none';
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
+  // Delay revocation so larger files can finish starting the download.
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    if (link.parentNode) link.parentNode.removeChild(link);
+  }, 1500);
   showToast(t('csvSaved'));
+  } catch(err) {
+    alert('CSV Export Error:\n\n' + err.message + '\n\nStack: ' + err.stack);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
