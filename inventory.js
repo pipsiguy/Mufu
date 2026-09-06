@@ -2,6 +2,7 @@
    Monthly Inventory – inventory.js
    Categorised inventory, CSV export, LocalStorage
 ══════════════════════════════════════════ */
+'use strict';
 
 /* ═══════════════════════════════════════════
    CONFIG
@@ -199,7 +200,7 @@ const I18N = {
     categoryDeleted: '🗑 Category deleted',
     itemDeleted: '🗑 Item deleted',
     clearedAll: '🧹 All quantities cleared',
-    forbiddenChars: '⚠ Names cannot contain < > " & characters',
+    forbiddenChars: '⚠ Names cannot contain < > " | characters',
     promptCategoryName: 'Category name:',
     promptItemName: 'Item name:',
     promptItemPrice: 'Price (number):',
@@ -297,7 +298,7 @@ const I18N = {
     categoryDeleted: '🗑 分类已删除',
     itemDeleted: '🗑 项目已删除',
     clearedAll: '🧹 本月数量已清空',
-    forbiddenChars: '⚠ 名称不能包含 < > " & 字符',
+    forbiddenChars: '⚠ 名称不能包含 < > " | 字符',
     promptCategoryName: '分类名称：',
     promptItemName: '项目名称：',
     promptItemPrice: '价格（数字）：',
@@ -395,7 +396,7 @@ const I18N = {
     categoryDeleted: '🗑 Categoría eliminada',
     itemDeleted: '🗑 Artículo eliminado',
     clearedAll: '🧹 Todas las cantidades borradas',
-    forbiddenChars: '⚠ Los nombres no pueden contener < > " & caracteres',
+    forbiddenChars: '⚠ Los nombres no pueden contener < > " | caracteres',
     promptCategoryName: 'Nombre de la categoría:',
     promptItemName: 'Nombre del artículo:',
     promptItemPrice: 'Precio (número):',
@@ -454,6 +455,7 @@ function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || 
 function sanitizeIdPart(value) {
   return String(value || '')
     .trim()
+    .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '') || 'x';
 }
@@ -520,7 +522,7 @@ function getCategoryLabel(cat) {
 }
 
 /* Validate name input — reject characters that break HTML */
-const FORBIDDEN_RE = /[<>"&|]/;
+const FORBIDDEN_RE = /[<>"|]/;  // same rule as app.js
 function isNameSafe(name) {
   if (FORBIDDEN_RE.test(name)) {
     showToast(t('forbiddenChars'));
@@ -535,7 +537,8 @@ function escapeHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 let CATEGORIES = loadCategoriesConfig(); // Used only for the first-ever month
@@ -572,8 +575,8 @@ function loadMonthData(monthStr) {
   catch { return null; }
 }
 
-function saveCurrentMonth() {
-  const ms = document.getElementById('inv-month').value;
+function saveCurrentMonth(monthStr) {
+  const ms = monthStr || document.getElementById('inv-month').value;
   if (!ms) return;
   const data = { __month: ms };
   // Save this month's categories/items structure
@@ -822,9 +825,9 @@ function buildInventory() {
       const priceVal = item.price !== null ? item.price : 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="inv-item-name"><input class="inp inv-edit-name" type="text" value="${item.name.replace(/"/g, '&quot;')}" data-cat="${cat.id}" data-item="${item.id}" /></td>
+        <td class="inv-item-name"><input class="inp inv-edit-name" type="text" value="${escapeHtml(item.name)}" data-cat="${cat.id}" data-item="${item.id}" /></td>
         <td class="inv-item-price"><input class="inp inv-edit-price" type="number" step="0.01" min="0" value="${priceVal}" data-cat="${cat.id}" data-item="${item.id}" /></td>
-        <td class="inv-item-unit"><input class="inp inv-edit-unit" type="text" value="${(item.unit || '').replace(/"/g, '&quot;')}" data-cat="${cat.id}" data-item="${item.id}" /></td>
+        <td class="inv-item-unit"><input class="inp inv-edit-unit" type="text" value="${escapeHtml(item.unit || '')}" data-cat="${cat.id}" data-item="${item.id}" /></td>
         <td>
           <input class="inp inv-qty" type="number" inputmode="decimal" min="0" step="0.01"
             placeholder="0"
@@ -913,13 +916,6 @@ function buildInventory() {
     });
   });
 
-  // Debounce localStorage writes while still updating UI instantly
-  let _saveTimer = null;
-  function debouncedSave() {
-    clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(saveCurrentMonth, 400);
-  }
-
   document.querySelectorAll('.inv-qty').forEach(inp => {
     inp.addEventListener('input', () => {
       updateLineTotal(inp);
@@ -928,14 +924,13 @@ function buildInventory() {
       debouncedSave();
     });
   });
+}
 
-  // Notes auto-save
-  const notesBox = document.getElementById('inv-notes');
-  if (notesBox) {
-    notesBox.addEventListener('input', () => {
-      debouncedSave();
-    });
-  }
+/* Debounce localStorage writes while still updating the UI instantly */
+let _saveTimer = null;
+function debouncedSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => saveCurrentMonth(), 400);
 }
 
 /* ═══════════════════════════════════════════
@@ -1122,8 +1117,7 @@ function switchToMonth(monthStr) {
     CATEGORIES = cloneCategories(CATEGORIES);
     clearForm();
   }
-  // Update _prevMonth tracker if it exists
-  if (typeof _prevMonth !== 'undefined') _prevMonth = monthStr;
+  _prevMonth = monthStr;
   renderHistory();
   showToast(t('monthLoaded'));
 }
@@ -1314,8 +1308,12 @@ async function loadPDFUnicodeFont(doc) {
   return null;
 }
 
-const _CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/;
-function _hasCJK(s) { return _CJK_RE.test(s); }
+/* jsPDF's built-in Helvetica covers Latin-1 (all Spanish accents) plus the
+   common typographic punctuation listed below. Anything else (CJK, emoji, …)
+   needs the embedded Unicode font, which is a large download — so it is only
+   fetched when the text to be printed actually requires it. */
+const _NEEDS_UNICODE_RE = /[^\u0000-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac\u2122]/;
+function needsUnicodeFont(text) { return _NEEDS_UNICODE_RE.test(text); }
 
 /* ═══════════════════════════════════════════
    PDF EXPORT & IMPORT
@@ -1335,17 +1333,18 @@ async function generateSnapshot() {
     const ms = document.getElementById('inv-month').value;
     const storeName = document.getElementById('store-name').textContent || '';
 
-    // Detect CJK in data that will go into the PDF
-    const _pdfText = [storeName,
-      ...CATEGORIES.flatMap(c => [getCategoryLabel(c), ...c.items.map(i => i.name)]),
-      ...(monthlyInvoices || []).map(i => i.vendor || ''),
+    // Everything that will be drawn: user data plus the UI labels in the current language
+    const pdfLabels = ['inventoryOf', 'item', 'price', 'qty', 'lineTotal', 'subtotal', 'grandTotal', 'na',
+      'monthlyInvoicesTitle', 'vendor', 'invoiceDate', 'amount', 'status', 'paid', 'unpaid',
+      'monthlyInvoicesTotal', 'invNotes'].map(k => t(k));
+    const pdfText = [storeName, formatMonth(ms),
+      ...CATEGORIES.flatMap(c => [getCategoryLabel(c), ...c.items.flatMap(i => [i.name, i.unit || ''])]),
+      ...(monthlyInvoices || []).flatMap(i => [i.vendor || '', i.date || '']),
       (document.getElementById('inv-notes') || {}).value || '',
-      t('inventoryOf'), t('item'), t('grandTotal'),
+      ...pdfLabels,
     ].join('');
-    const _needsUni = currentLang !== 'en' || _hasCJK(_pdfText);
 
-    // Load Unicode font for CJK / accented characters
-    if (_needsUni) {
+    if (needsUnicodeFont(pdfText)) {
       const uf = await loadPDFUnicodeFont(doc);
       if (uf) {
         const _sf = doc.setFont.bind(doc);
@@ -1393,8 +1392,8 @@ async function generateSnapshot() {
         const key = itemKey(cat.id, item.id);
         const inp = document.querySelector(`.inv-qty[data-item-key="${CSS.escape(key)}"]`);
         const qty = inp ? (parseFloat(inp.value) || 0) : 0;
-        const price = item.price || 0;
-        const lineTotal = qty * price;
+        const price = Number.isFinite(item.price) ? item.price : null; // null = N/A
+        const lineTotal = qty * (price || 0);
         catTotal += lineTotal;
         if (qty > 0) items.push({ name: item.name, qty, price, unit: item.unit, lineTotal });
       });
@@ -1755,6 +1754,63 @@ function parseInventoryFromLines(lines) {
   return { month, categories: reconstructedCats, invoices, notes: notesLines.join('\n') };
 }
 
+/* ── PDF Upload: merge parsed categories into the current catalog ──
+   A PDF only lists items that had a quantity, so replacing the catalog with it
+   would silently drop every other item. Categories are matched by label (any
+   language, for the built-in ones) and items by name, case-insensitively;
+   anything unmatched is added. Returns the merged catalog plus the quantities
+   keyed by itemKey(). */
+function mergeParsedCategories(baseCats, parsedCats) {
+  const categories = cloneCategories(baseCats);
+  const quantities = {};
+  const norm = s => String(s || '').trim().toLowerCase();
+
+  function labelsOf(cat) {
+    const out = [norm(cat.name)];
+    if (cat.labelKey) Object.values(I18N).forEach(lang => out.push(norm(lang[cat.labelKey])));
+    return out.filter(Boolean);
+  }
+  function findItemByName(name) {
+    for (const cat of categories) {
+      const item = cat.items.find(it => norm(it.name) === name);
+      if (item) return { cat, item };
+    }
+    return null;
+  }
+
+  parsedCats.forEach(pc => {
+    const pName = norm(pc.name);
+    let cat = categories.find(c => labelsOf(c).includes(pName));
+    if (!cat) {
+      cat = { id: uniqueId('cat'), labelKey: null, name: String(pc.name || '').trim() || 'Category', items: [] };
+      categories.push(cat);
+    }
+    pc.items.forEach(pi => {
+      const iName = norm(pi.name);
+      if (!iName) return;
+      const inThisCat = cat.items.find(it => norm(it.name) === iName);
+      let hit = inThisCat ? { cat, item: inThisCat } : findItemByName(iName);
+      if (!hit) {
+        const item = {
+          id: uniqueId('item'),
+          name: String(pi.name).trim(),
+          price: Number.isFinite(pi.price) ? pi.price : null,
+          unit: pi.unit || '',
+        };
+        cat.items.push(item);
+        hit = { cat, item };
+      } else if (Number.isFinite(pi.price)) {
+        // The PDF reflects that month's price / unit
+        hit.item.price = pi.price;
+        if (pi.unit) hit.item.unit = pi.unit;
+      }
+      if (pi.qty > 0) quantities[itemKey(hit.cat.id, hit.item.id)] = pi.qty;
+    });
+  });
+
+  return { categories, quantities };
+}
+
 /* ── PDF Upload handler ── */
 function hasCurrentInventoryInputData() {
   const hasQty = Array.from(document.querySelectorAll('.inv-qty')).some(inp => (parseFloat(inp.value) || 0) !== 0);
@@ -1795,30 +1851,13 @@ async function handlePDFUpload(e) {
 
     const data = { __month: targetMonth };
 
-    // Rebuild categories from PDF content
+    // Merge the PDF's items into the current catalog (never shrink it)
     if (parsed.categories.length > 0) {
-      const rawCats = parsed.categories.map(cat => ({
-        name: cat.name,
-        labelKey: null,
-        items: cat.items.map(it => ({
-          name: it.name,
-          price: it.price,
-          unit: it.unit,
-        }))
-      }));
-      const normalizedCats = normalizeCategories(rawCats);
-      data.__categories = normalizedCats;
-
-      // Map quantities using normalized IDs (index correspondence is preserved)
-      normalizedCats.forEach((cat, ci) => {
-        cat.items.forEach((item, ii) => {
-          const qty = parsed.categories[ci]?.items[ii]?.qty || 0;
-          if (qty > 0) data[itemKey(cat.id, item.id)] = qty;
-        });
-      });
+      const merged = mergeParsedCategories(CATEGORIES, parsed.categories);
+      data.__categories = merged.categories;
+      Object.assign(data, merged.quantities);
     } else {
-      // No categories in PDF — keep current structure
-      data.__categories = JSON.parse(JSON.stringify(CATEGORIES));
+      data.__categories = cloneCategories(CATEGORIES);
     }
 
     if (parsed.notes) data.__notes = parsed.notes;
@@ -1851,7 +1890,7 @@ function showToast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2500);
+  setTimeout(() => el.classList.remove('show'), 3000);
 }
 
 /* ═══════════════════════════════════════════
@@ -1874,6 +1913,7 @@ function applyI18n() {
 
 function setLang(lang) {
   currentLang = lang;
+  document.documentElement.lang = lang;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
   applyI18n();
   buildInventory();
@@ -1986,9 +2026,16 @@ function exportInventoryCSV() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.download = `inventory_${ms}_${String(storeName || 'store').replace(/[\\/:*?"<>|\s]+/g, '_').trim() || 'store'}.csv`;
-  link.href = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.style.display = 'none';
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
+  // Delay revocation so the browser has started the download (same as app.js)
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    if (link.parentNode) link.parentNode.removeChild(link);
+  }, 1500);
   showToast(t('csvSaved'));
 }
 
@@ -2013,6 +2060,10 @@ document.addEventListener('DOMContentLoaded', () => {
   applyI18n();
   initSearch();
 
+  // Notes auto-save (static textarea: wire once here, not on every rebuild)
+  const notesBox = document.getElementById('inv-notes');
+  if (notesBox) notesBox.addEventListener('input', debouncedSave);
+
   // Try to load existing data for this month
   const existing = loadMonthData(defaultMonth);
   if (existing) applyMonthData(existing);
@@ -2027,19 +2078,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _prevMonth = document.getElementById('inv-month').value;
   document.getElementById('inv-month').addEventListener('change', () => {
     // Save data under the PREVIOUS month key, not the new one
-    const prevMs = _prevMonth;
-    if (prevMs) {
-      const prevData = { __month: prevMs };
-      prevData.__categories = cloneCategories(CATEGORIES);
-      document.querySelectorAll('.inv-qty').forEach(el => {
-        const q = parseFloat(el.value);
-        if (q) prevData[el.dataset.itemKey] = q;
-      });
-      if (monthlyInvoices.length) prevData.__invoices = monthlyInvoices;
-      const notesVal = (document.getElementById('inv-notes') || {}).value || '';
-      if (notesVal.trim()) prevData.__notes = notesVal;
-      localStorage.setItem(invKey(prevMs), JSON.stringify(prevData));
-    }
+    if (_prevMonth) saveCurrentMonth(_prevMonth);
     const ms = document.getElementById('inv-month').value;
     _prevMonth = ms;
     const data = loadMonthData(ms);
@@ -2077,17 +2116,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-add-invoice').addEventListener('click', addInvoice);
   document.getElementById('btn-del-invoice').addEventListener('click', deleteInvoices);
 
-  // Load existing invoices for current month
-  const invData = loadMonthData(defaultMonth);
-  if (invData && Array.isArray(invData.__invoices)) {
-    monthlyInvoices = invData.__invoices.map(inv => ({
-      vendor: String(inv.vendor || ''),
-      amount: parseFloat(inv.amount) || 0,
-      paid: !!inv.paid,
-      date: inv.date || '',
-    }));
-  }
-  renderInvoicesSection();
+  // applyMonthData() above already restored this month's invoices; a month
+  // with no saved data just needs the empty state rendered.
+  if (!existing) renderInvoicesSection();
 
   // History sidebar
   document.getElementById('btn-inv-history').addEventListener('click', () => {
@@ -2102,11 +2133,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Init Lucide
   if (window.lucide) lucide.createIcons();
-
-  // Apply active lang button
-  document.querySelectorAll('.lang-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.lang === currentLang);
-  });
 });
 
 function closeHistory() {
@@ -2324,7 +2350,7 @@ function renderInvoicesSection() {
   monthlyInvoices.forEach((inv, idx) => {
     grandTotal += inv.amount;
     const safeName = escapeHtml(inv.vendor);
-    const safeDate = (inv.date || '').replace(/"/g, '&quot;');
+    const safeDate = escapeHtml(inv.date || '');
     const paidClass = inv.paid ? 'inv-status-paid' : 'inv-status-unpaid';
     const paidLabel = inv.paid ? t('paid') : t('unpaid');
     html += '<tr>';

@@ -246,12 +246,6 @@
   margin-bottom: 8px;
 }
 
-.inv-head-btn {
-  padding: 6px 10px !important;
-  font-size: 0.75rem !important;
-  white-space: nowrap;
-}
-
 .inv-edit-name,
 .inv-edit-price,
 .inv-edit-unit {
@@ -549,18 +543,6 @@
   white-space: nowrap;
 }
 
-.inv-invoices-cell {
-  text-align: right;
-  padding: 5px 8px;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.inv-invoices-cell.tot-cell {
-  font-weight: 700;
-  color: var(--text);
-}
-
 .inv-invoices-total-row {
   display: flex;
   align-items: center;
@@ -649,11 +631,6 @@
     padding: 9px 6px;
     font-size: 0.74rem;
     gap: 4px;
-  }
-
-  .inv-head-btn {
-    padding: 5px 7px !important;
-    font-size: 0.68rem !important;
   }
 
   .inv-cat-header {

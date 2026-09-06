@@ -97,17 +97,13 @@
 
   // Hours by employee/day
   EMPLOYEES.forEach((emp, ei) => {
-    let weeklyHours = 0;
     for (let day = 0; day < 7; day++) {
       const isWeekend = day >= 5;
       const base = isWeekend ? 7.5 : 6.5;
       const hrs = Math.max(0, Math.min(12, base + (rand() * 4.5) + ((ei % 3) * 0.35)));
       const rounded = Math.round(hrs * 2) / 2; // 0.5 hour steps
-      weeklyHours += rounded;
       s[`h_${emp}_${day}`] = String(rounded);
     }
-    // Optional salary field support (if present in UI/runtime)
-    s[`sal_${emp}`] = f2(weeklyHours * (16 + (ei % 5) * 1.25));
   });
 
   // Invoices by vendor/day + paid toggle

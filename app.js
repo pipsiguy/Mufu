@@ -2,6 +2,7 @@
    EasyDailyReport – app.js
    QR, LocalStorage, i18n, and snapshot logic
 ══════════════════════════════════════════ */
+'use strict';
 
 /* ═══════════════════════════════════════════
    CONFIG
@@ -14,7 +15,8 @@ let currentWeekDate = '';  // tracks which week is displayed, for save-on-switch
 let storeName = 'Store Name';  // editable, saved to meta
 const WEEK_PREFIX = 'edr_week_';    // per-week keys: edr_week_2026-02-23
 const META_KEY    = 'edr_meta';     // stores { lang, lastWeek, employees }
-const QR_SIZE = 180;
+const QR_MAX_PX = 620;        // must fit inside the 680 px snapshot minus padding
+const QR_FALLBACK_PX = 531;   // 3 px per module for the largest (177-module) code
 const QR_RENDER_DELAY_MS = 300;
 const QR_MAX_BYTES = 2900;  // QR capacity with EC Level L; maxJsonBytes() = ~2175 usable bytes
 
@@ -82,14 +84,14 @@ const I18N = {
     infoMessage: 'All data is stored only on your device. If you delete the app, clear your storage, switch phones, or change browsers, your data will be lost. You can restore past weeks by uploading snapshot images (QR) or exported PDF files.',
     notes: 'Notes',
     notesPlaceholder: 'Add notes for this week…',
-    qrTooLarge: '⚠ Data too large for QR code! Please reduce notes ({over} characters over limit). Use Generate PDF instead.',
+    qrTooLarge: '⚠ Too much data for the QR code ({over} characters over). Shorten the notes or use Generate PDF instead.',
     notesRemaining: '{n} characters remaining for QR',
     deleteOldest10: 'Delete Oldest 10 Weeks',
     confirmDeleteOldest: 'This will permanently delete the 10 oldest weeks. Continue?',
     weeksMax: '20 weeks max stored on device',
     oldestDeleted: '🗑 Deleted {n} oldest week(s)',
     maxWeeksReached: '⚠ Max 20 weeks reached — oldest week auto-deleted',
-    forbiddenChars: '⚠ Names cannot contain < > " & characters',
+    forbiddenChars: '⚠ Names cannot contain < > " | characters',
     exportCSV: 'Export CSV',
     csvHint: 'Download this week as a .csv file for Excel, Google Sheets, or Numbers.',
     csvSaved: '📄 CSV exported!',
@@ -166,14 +168,14 @@ const I18N = {
     infoMessage: '所有数据仅存储在您的设备上。如果您删除应用、清除存储、更换手机或更换浏览器，数据将会丢失。您可以通过上传快照图片（二维码）或导出的 PDF 文件来恢复过去的周报。',
     notes: '备注',
     notesPlaceholder: '添加本周备注…',
-    qrTooLarge: '⚠ 数据超出二维码容量！请减少备注（超出 {over} 个字符）。请改用生成 PDF。',
+    qrTooLarge: '⚠ 数据超出二维码容量（超出 {over} 个字符）。请缩短备注或改用生成 PDF。',
     notesRemaining: '二维码剩余 {n} 个字符',
     deleteOldest10: '删除最旧的10周',
     confirmDeleteOldest: '这将永久删除最旧的10个周报。继续？',
     weeksMax: '设备最多存储20周',
     oldestDeleted: '🗑 已删除 {n} 个最旧周报',
     maxWeeksReached: '⚠ 已达20周上限 — 已自动删除最旧周报',
-    forbiddenChars: '⚠ 名称不能包含 < > " & 字符',
+    forbiddenChars: '⚠ 名称不能包含 < > " | 字符',
     exportCSV: '导出 CSV',
     csvHint: '将本周数据下载为 .csv 文件，可在 Excel、Google Sheets 或 Numbers 中打开。',
     csvSaved: '📄 CSV 已导出！',
@@ -250,14 +252,14 @@ const I18N = {
     infoMessage: 'Todos los datos se almacenan solo en su dispositivo. Si elimina la aplicación, borra el almacenamiento, cambia de teléfono o de navegador, los datos se perderán. Puede restaurar semanas pasadas subiendo imágenes de captura (QR) o archivos PDF exportados.',
     notes: 'Notas',
     notesPlaceholder: 'Agregar notas para esta semana…',
-    qrTooLarge: '⚠ ¡Datos demasiado grandes para el código QR! Reduzca las notas ({over} caracteres de más). Use Generar PDF en su lugar.',
+    qrTooLarge: '⚠ Demasiados datos para el código QR ({over} caracteres de más). Acorte las notas o use Generar PDF.',
     notesRemaining: '{n} caracteres restantes para QR',
     deleteOldest10: 'Eliminar 10 Semanas Más Antiguas',
     confirmDeleteOldest: 'Esto eliminará permanentemente las 10 semanas más antiguas. ¿Continuar?',
     weeksMax: 'Máximo 20 semanas guardadas',
     oldestDeleted: '🗑 Se eliminaron {n} semana(s) más antigua(s)',
     maxWeeksReached: '⚠ Máx 20 semanas — se eliminó la semana más antigua',
-    forbiddenChars: '⚠ Los nombres no pueden contener < > " & caracteres',
+    forbiddenChars: '⚠ Los nombres no pueden contener < > " | caracteres',
     exportCSV: 'Exportar CSV',
     csvHint: 'Descargue esta semana como archivo .csv para Excel, Google Sheets o Numbers.',
     csvSaved: '📄 ¡CSV exportado!',
@@ -286,13 +288,114 @@ function qsel(key) {
 }
 
 /* Validate name input — reject characters that break HTML */
-const FORBIDDEN_RE = /[<>"&|]/;
+const FORBIDDEN_RE = /[<>"|]/;  // | is the QR key delimiter; < > " are kept out of names as a safety margin
 function isNameSafe(name) {
   if (FORBIDDEN_RE.test(name)) {
     showToast(t('forbiddenChars'));
     return false;
   }
   return true;
+}
+
+/* Escape HTML entities for safe innerHTML usage */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* UTF-8 ↔ base64 helpers (replaces deprecated escape/unescape) */
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+function base64ToUtf8(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+/* Re-render Lucide icons. Tolerates the icon CDN failing to load so the app keeps working. */
+function refreshIcons() {
+  if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+}
+
+/* ═══════════════════════════════════════════
+   DELETE-MODE UI HELPERS
+   Shared between sales sources / employees / vendors / expenses.
+   Only the UI plumbing is shared; per-section confirm logic differs
+   (storage, table rebuild, total recalcs) and stays inline.
+═══════════════════════════════════════════ */
+function enterDeleteCheckboxMode(cfg) {
+  // cfg: { tableId, bodyId, headRowId, totRowSelector, bodyRowSelector,
+  //        dataAttr, isFixed, actionsId, deleteLabel, onCancel, onConfirm }
+  const tbody = document.getElementById(cfg.bodyId);
+  const headRow = document.getElementById(cfg.headRowId);
+  const isFixed = cfg.isFixed || (() => false);
+  const bodyRows = tbody.querySelectorAll(cfg.bodyRowSelector || 'tr');
+
+  bodyRows.forEach(tr => {
+    const td = document.createElement('td');
+    td.className = 'emp-check-cell';
+    const labelTd = tr.querySelector('td');
+    const label = labelTd ? labelTd.textContent : '';
+    if (!isFixed(label)) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'emp-check';
+      cb.dataset[cfg.dataAttr] = label;
+      td.appendChild(cb);
+    }
+    tr.insertBefore(td, tr.firstChild);
+  });
+
+  const th = document.createElement('th');
+  th.className = 'emp-check-cell';
+  headRow.insertBefore(th, headRow.firstChild);
+
+  const totRow = cfg.totRowSelector ? document.querySelector(cfg.totRowSelector) : null;
+  if (totRow) {
+    const td = document.createElement('td');
+    td.className = 'emp-check-cell';
+    totRow.insertBefore(td, totRow.firstChild);
+  }
+
+  const bar = document.getElementById(cfg.actionsId);
+  bar.innerHTML = `
+    <button class="btn-emp btn-emp-cancel" data-del-cancel>
+      <span>${escapeHtml(t('cancel'))}</span>
+    </button>
+    <button class="btn-emp btn-emp-confirm-del" data-del-confirm>
+      <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+      <span>${escapeHtml(cfg.deleteLabel)}</span>
+    </button>
+  `;
+  bar.querySelector('[data-del-cancel]').addEventListener('click', cfg.onCancel);
+  bar.querySelector('[data-del-confirm]').addEventListener('click', cfg.onConfirm);
+  refreshIcons();
+}
+
+function exitDeleteCheckboxMode(tableId, renderDefaultActions) {
+  document.querySelectorAll(`#${tableId} .emp-check-cell`).forEach(el => el.remove());
+  if (renderDefaultActions) renderDefaultActions();
+}
+
+/* Collect checked names from a delete-mode table; returns null if user cancels. */
+function collectCheckedDeleteNames(scopeSelector, dataAttr) {
+  const checked = Array.from(document.querySelectorAll(`${scopeSelector} .emp-check:checked`));
+  if (checked.length === 0) return null;
+  const names = checked.map(cb => cb.dataset[dataAttr]);
+  const msg = t('confirmDeleteNames').replace('{names}', names.join(', '));
+  if (!confirm(msg)) return null;
+  return names;
 }
 
 /* ═══════════════════════════════════════════
@@ -354,23 +457,44 @@ function loadWeekData(dateStr) {
   catch(e) { return null; }
 }
 
+/* The row structure (employees, vendors, sales sources, expense rows) lives in
+   meta so it carries over to new weeks and survives reloads. */
+function structureMetaPatch() {
+  return {
+    employees: employees.slice(),
+    vendors: vendors.slice(),
+    salesSources: salesSources.slice(),
+    cashExpenses: cashExpenses.slice(),
+  };
+}
+
 function saveCurrentWeek(weekStart) {
   const ws = weekStart || document.getElementById('week-start').value;
   if (!ws) return;
+
+  const key = weekKey(ws);
+  // A week that was only looked at (nothing typed) is not persisted, so browsing
+  // weeks doesn't fill the history list — and the 20-week cap — with empty
+  // entries. Weeks that already exist are always re-saved so clearing values
+  // or changing rows is kept.
+  if (localStorage.getItem(key) === null && !hasCurrentWeekInputData()) {
+    saveMeta(Object.assign({ lang: currentLang, lastWeek: ws }, structureMetaPatch()));
+    return;
+  }
 
   const s = {};
   document.querySelectorAll('[data-key]').forEach(el => {
     if (el.value && el.value !== '0') s[el.dataset.key] = el.value;
   });
-  // Always save week state so each week preserves its own vendors, employees, and sales sources
+  // Each week keeps its own copy of the row structure so old weeks restore exactly
   s['__weekStart'] = ws;
   s['__employees'] = employees.slice();
   s['__vendors'] = vendors.slice();
   s['__cashExpenses'] = cashExpenses.slice();
   s['__salesSources'] = salesSources.slice();
-  localStorage.setItem(weekKey(ws), JSON.stringify(s));
+  localStorage.setItem(key, JSON.stringify(s));
   enforceWeekLimit();
-  saveMeta({ lang: currentLang, lastWeek: ws, employees: employees.slice(), vendors: vendors.slice(), salesSources: salesSources.slice() });
+  saveMeta(Object.assign({ lang: currentLang, lastWeek: ws }, structureMetaPatch()));
 }
 
 function loadState() {
@@ -463,23 +587,26 @@ function applyState(s) {
   syncVendorPaidToggles();
 }
 
+/* Show an empty week for dateStr. The current employees, vendors, sales sources
+   and expense rows are kept (only the values are cleared) so the user doesn't
+   have to re-add them every week. */
+function startBlankWeek(dateStr) {
+  document.getElementById('week-start').value = dateStr;
+  FIXED_SALES_SOURCES.forEach(f => {
+    if (!salesSources.includes(f)) salesSources.unshift(f);
+  });
+  buildAllTables();
+  clearForm();
+  updateDateLabels();
+}
+
 function switchToWeek(dateStr) {
   // Save current first
   saveCurrentWeek();
   // Load target week
   const data = loadWeekData(dateStr);
-  if (data) {
-    applyState(data);
-  } else {
-    // New blank week — keep current salesSources so user-added sources carry over
-    document.getElementById('week-start').value = dateStr;
-    salesSources = DEFAULT_SALES_SOURCES.slice();
-    buildSalesTable();
-    cashExpenses = [];
-    buildExpensesTable();
-    clearForm();
-    updateDateLabels();
-  }
+  if (data) applyState(data);
+  else startBlankWeek(dateStr);
   currentWeekDate = dateStr;
   saveMeta({ lastWeek: dateStr });
   renderHistory();
@@ -498,16 +625,8 @@ function deleteWeek(dateStr) {
     document.getElementById('week-start').value = monStr;
     // Load this Monday's data if it exists, otherwise blank
     const existing = loadWeekData(monStr);
-    if (existing) {
-      applyState(existing);
-    } else {
-      salesSources = DEFAULT_SALES_SOURCES.slice();
-      buildSalesTable();
-      cashExpenses = [];
-      buildExpensesTable();
-      clearForm();
-      updateDateLabels();
-    }
+    if (existing) applyState(existing);
+    else startBlankWeek(monStr);
     saveMeta({ lastWeek: monStr });
     currentWeekDate = monStr;
   }
@@ -568,16 +687,17 @@ function buildSalesTable() {
 
   salesSources.forEach(src => {
     const tr = document.createElement('tr');
-    let row = `<td class="row-label">${src}</td>`;
+    const eSrc = escapeHtml(src);
+    let row = `<td class="row-label">${eSrc}</td>`;
     DAYS().forEach((_, i) => {
       row += `<td><input class="inp" type="number" inputmode="decimal" min="0" step="0.01"
         placeholder="0.00"
-        data-key="s_${i}_${src}"
+        data-key="s_${i}_${eSrc}"
         data-col="sales"
-        data-sales-source="${src}"
+        data-sales-source="${eSrc}"
         data-row="${i}" /></td>`;
     });
-    row += `<td class="tot-cell" data-stot="${src}">$0.00</td>`;
+    row += `<td class="tot-cell" data-stot="${eSrc}">$0.00</td>`;
     tr.innerHTML = row;
     tbody.appendChild(tr);
   });
@@ -616,7 +736,7 @@ function renderSalesActions() {
   `;
   document.getElementById('btn-add-sales-source').addEventListener('click', addSalesSource);
   document.getElementById('btn-del-sales-source-mode').addEventListener('click', toggleSalesDeleteMode);
-  lucide.createIcons();
+  refreshIcons();
 }
 
 function addSalesSource() {
@@ -643,60 +763,25 @@ function addSalesSource() {
 
 function toggleSalesDeleteMode() {
   salesDeleteMode = !salesDeleteMode;
-  const tbody = document.getElementById('sales-body');
-  const bar = document.getElementById('sales-actions');
-
-  // Only removable sources (exclude fixed and totals row)
   const removable = salesSources.filter(s => !FIXED_SALES_SOURCES.includes(s));
   if (salesDeleteMode && removable.length === 0) {
     salesDeleteMode = false;
     return;
   }
-
   if (salesDeleteMode) {
-    // Add checkbox to each source row (skip fixed sources and totals row)
-    const rows = tbody.querySelectorAll('tr:not(.totals-row)');
-    rows.forEach(tr => {
-      const label = tr.querySelector('td').textContent;
-      const td = document.createElement('td');
-      td.className = 'emp-check-cell';
-      if (FIXED_SALES_SOURCES.includes(label)) {
-        // No checkbox for fixed sources — just an empty cell
-        td.innerHTML = '';
-      } else {
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'emp-check';
-        cb.dataset.salesSource = label;
-        td.appendChild(cb);
-      }
-      tr.insertBefore(td, tr.firstChild);
+    enterDeleteCheckboxMode({
+      tableId: 'sales-table',
+      bodyId: 'sales-body',
+      headRowId: 'sales-head-row',
+      bodyRowSelector: 'tr:not(.totals-row)',
+      totRowSelector: '#sales-body tr.totals-row',
+      dataAttr: 'salesSource',
+      isFixed: label => FIXED_SALES_SOURCES.includes(label),
+      actionsId: 'sales-actions',
+      deleteLabel: t('deleteSalesSources'),
+      onCancel: exitSalesDeleteMode,
+      onConfirm: confirmDeleteSalesSources,
     });
-    // Totals row — empty cell
-    const totRow = tbody.querySelector('tr.totals-row');
-    if (totRow) {
-      const td = document.createElement('td');
-      td.className = 'emp-check-cell';
-      totRow.insertBefore(td, totRow.firstChild);
-    }
-    // Header
-    const headRow = document.getElementById('sales-head-row');
-    const th = document.createElement('th');
-    th.className = 'emp-check-cell';
-    headRow.insertBefore(th, headRow.firstChild);
-
-    bar.innerHTML = `
-      <button class="btn-emp btn-emp-cancel" id="btn-sdel-cancel">
-        <span>${t('cancel')}</span>
-      </button>
-      <button class="btn-emp btn-emp-confirm-del" id="btn-sdel-confirm">
-        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-        <span>${t('deleteSalesSources')}</span>
-      </button>
-    `;
-    document.getElementById('btn-sdel-cancel').addEventListener('click', exitSalesDeleteMode);
-    document.getElementById('btn-sdel-confirm').addEventListener('click', confirmDeleteSalesSources);
-    lucide.createIcons();
   } else {
     exitSalesDeleteMode();
   }
@@ -704,16 +789,12 @@ function toggleSalesDeleteMode() {
 
 function exitSalesDeleteMode() {
   salesDeleteMode = false;
-  document.querySelectorAll('#sales-table .emp-check-cell').forEach(el => el.remove());
-  renderSalesActions();
+  exitDeleteCheckboxMode('sales-table', renderSalesActions);
 }
 
 function confirmDeleteSalesSources() {
-  const checked = Array.from(document.querySelectorAll('#sales-body .emp-check:checked'));
-  if (checked.length === 0) return;
-  const names = checked.map(cb => cb.dataset.salesSource);
-  const msg = t('confirmDeleteNames').replace('{names}', names.join(', '));
-  if (!confirm(msg)) return;
+  const names = collectCheckedDeleteNames('#sales-body', 'salesSource');
+  if (!names) return;
   saveCurrentWeek();
   salesSources = salesSources.filter(s => !names.includes(s));
   salesDeleteMode = false;
@@ -778,8 +859,6 @@ function rebuildExpensesTablePreserveValues() {
 
 function updateDateLabels() {
   const dates = getWeekDates();
-  const today = isoDate(new Date());
-
   DAYS().forEach((_, i) => {
     const span = document.querySelector(`[data-day-date="${i}"]`);
     if (span) span.textContent = formatDate(dates[i]);
@@ -799,24 +878,24 @@ function buildHoursTable() {
   });
   headRow.innerHTML += `<th data-i18n="totalHrs">${t('totalHrs')}</th>`;
 
-  // Only total hours row (no salary)
+  // Totals row: label spanning employee + 7 day columns, then the week's total hours
   const totRow = document.getElementById('hours-totals-row');
-  totRow.innerHTML = '';
-  const colspan = 1 + 7 + 1; // employee + days + totalHrs
-  totRow.innerHTML = `<td colspan="${colspan}" style="text-align:right;font-weight:600" data-i18n="totalHrs">${t('totalHrs')}</td>`;
+  totRow.innerHTML = `<td colspan="8" style="text-align:right;font-weight:600" data-i18n="totalHrs">${t('totalHrs')}</td>` +
+    `<td class="tot-cell" id="htot-hours">0</td>`;
 
   const tbody = document.getElementById('hours-body');
   tbody.innerHTML = '';
   employees.forEach(emp => {
     const tr = document.createElement('tr');
     const safeId = CSS.escape(emp);
-    let row = `<td>${emp}</td>`;
+    const eEmp = escapeHtml(emp);
+    let row = `<td>${eEmp}</td>`;
     DAYS().forEach((_, i) => {
       const key = `h_${emp}_${i}`;
       row += `<td><input class="inp" type="number" inputmode="decimal" min="0" step="0.5"
         placeholder="0"
-        data-key="${key}"
-        data-emp="${emp}"
+        data-key="${escapeHtml(key)}"
+        data-emp="${eEmp}"
         data-day="${i}" /></td>`;
     });
     row += `<td class="tot-cell" id="etot-${safeId}">0</td>`;
@@ -854,56 +933,27 @@ function renderEmployeeActions() {
 
   document.getElementById('btn-add-emp').addEventListener('click', addEmployee);
   document.getElementById('btn-del-mode').addEventListener('click', toggleDeleteMode);
-  lucide.createIcons();
+  refreshIcons();
 }
 
 function toggleDeleteMode() {
   deleteMode = !deleteMode;
-  const tbody = document.getElementById('hours-body');
-  const bar = document.getElementById('emp-actions');
-
   if (deleteMode && employees.length === 0) {
     deleteMode = false;
     return;
   }
-
   if (deleteMode) {
-    // Add checkbox to each employee row
-    tbody.querySelectorAll('tr').forEach(tr => {
-      const td = document.createElement('td');
-      td.className = 'emp-check-cell';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'emp-check';
-      cb.dataset.emp = tr.querySelector('td').textContent;
-      td.appendChild(cb);
-      tr.insertBefore(td, tr.firstChild);
+    enterDeleteCheckboxMode({
+      tableId: 'hours-table',
+      bodyId: 'hours-body',
+      headRowId: 'hours-head-row',
+      totRowSelector: '#hours-totals-row',
+      dataAttr: 'emp',
+      actionsId: 'emp-actions',
+      deleteLabel: t('deleteEmployee'),
+      onCancel: exitDeleteMode,
+      onConfirm: confirmDeleteEmployees,
     });
-    // Add checkbox header
-    const headRow = document.getElementById('hours-head-row');
-    const th = document.createElement('th');
-    th.className = 'emp-check-cell';
-    th.textContent = '';
-    headRow.insertBefore(th, headRow.firstChild);
-    // Add empty cell in totals row
-    const totRow = document.getElementById('hours-totals-row');
-    const td = document.createElement('td');
-    td.className = 'emp-check-cell';
-    totRow.insertBefore(td, totRow.firstChild);
-
-    // Show confirm-delete button, hide others
-    bar.innerHTML = `
-      <button class="btn-emp btn-emp-cancel" id="btn-del-cancel">
-        <span>${t('cancel')}</span>
-      </button>
-      <button class="btn-emp btn-emp-confirm-del" id="btn-del-confirm">
-        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-        <span>${t('deleteEmployee')}</span>
-      </button>
-    `;
-    document.getElementById('btn-del-cancel').addEventListener('click', exitDeleteMode);
-    document.getElementById('btn-del-confirm').addEventListener('click', confirmDeleteEmployees);
-    lucide.createIcons();
   } else {
     exitDeleteMode();
   }
@@ -911,17 +961,12 @@ function toggleDeleteMode() {
 
 function exitDeleteMode() {
   deleteMode = false;
-  // Remove checkbox cells — scoped to hours table only
-  document.querySelectorAll('#hours-table .emp-check-cell').forEach(el => el.remove());
-  renderEmployeeActions();
+  exitDeleteCheckboxMode('hours-table', renderEmployeeActions);
 }
 
 function confirmDeleteEmployees() {
-  const checked = Array.from(document.querySelectorAll('.emp-check:checked'));
-  if (checked.length === 0) return;
-  const names = checked.map(cb => cb.dataset.emp);
-  const msg = t('confirmDeleteNames').replace('{names}', names.join(', '));
-  if (!confirm(msg)) return;
+  const names = collectCheckedDeleteNames('#hours-body', 'emp');
+  if (!names) return;
   employees = employees.filter(e => !names.includes(e));
   saveMeta({ employees: employees.slice() });
   deleteMode = false;
@@ -938,23 +983,6 @@ function addEmployee() {
   if (employees.includes(trimmed)) return;
   saveCurrentWeek();
   employees.push(trimmed);
-  saveMeta({ employees: employees.slice() });
-  const data = loadWeekData(document.getElementById('week-start').value);
-  buildHoursTable();
-  if (data) {
-    Object.entries(data).forEach(([k, v]) => {
-      const el = qsel(k);
-      if (el) el.value = v;
-    });
-  }
-  updateHoursTotals();
-  saveCurrentWeek();
-  updateNotesCounter();
-}
-
-function removeEmployee(emp) {
-  saveCurrentWeek();
-  employees = employees.filter(e => e !== emp);
   saveMeta({ employees: employees.slice() });
   const data = loadWeekData(document.getElementById('week-start').value);
   buildHoursTable();
@@ -990,7 +1018,8 @@ function buildInvoicesTable() {
   tbody.innerHTML = '';
   vendors.forEach(v => {
     const tr = document.createElement('tr');
-    let row = `<td class="row-label">${v}</td>`;
+    const eV = escapeHtml(v);
+    let row = `<td class="row-label">${eV}</td>`;
     DAYS().forEach((_, i) => {
       // Get paid state for this invoice from current week data
       let paidVal = '';
@@ -1005,20 +1034,20 @@ function buildInvoicesTable() {
       row += `<td class="inv-day-cell">`;
       row += `<input class="inp" type="number" inputmode="decimal" min="0" step="0.01"
         placeholder="0.00"
-        data-key="inv_${v}_${i}"
-        data-vendor="${v}"
+        data-key="inv_${eV}_${i}"
+        data-vendor="${eV}"
         data-day="${i}" />`;
-      row += `<div class="inv-cell-toggle" id="invtog-${v}-${i}" style="display:none;">`;
-      row += `<input type="hidden" data-key="invpaid_${v}_${i}" value="${paidVal}" />`;
+      row += `<div class="inv-cell-toggle" id="invtog-${eV}-${i}" style="display:none;">`;
+      row += `<input type="hidden" data-key="invpaid_${eV}_${i}" value="${paidVal}" />`;
       row += `<label class="inv-toggle">`;
-      row += `<input type="checkbox" class="inv-toggle-input" data-vendor="${v}" data-day="${i}"${paidChecked ? ' checked' : ''} />`;
+      row += `<input type="checkbox" class="inv-toggle-input" data-vendor="${eV}" data-day="${i}"${paidChecked ? ' checked' : ''} />`;
       row += `<span class="inv-toggle-slider"></span>`;
       row += `</label>`;
-      row += `<span class="inv-cell-toggle-label" id="invtogl-${v}-${i}">${paidLabel}</span>`;
+      row += `<span class="inv-cell-toggle-label" id="invtogl-${eV}-${i}">${escapeHtml(paidLabel)}</span>`;
       row += `</div>`;
       row += `</td>`;
     });
-    row += `<td class="tot-cell" id="vtot-${v}">$0.00</td>`;
+    row += `<td class="tot-cell" id="vtot-${eV}">$0.00</td>`;
     tr.innerHTML = row;
     tbody.appendChild(tr);
   });
@@ -1183,55 +1212,27 @@ function renderVendorActions() {
   `;
   document.getElementById('btn-add-vendor').addEventListener('click', addVendor);
   document.getElementById('btn-del-vendor-mode').addEventListener('click', toggleVendorDeleteMode);
-  lucide.createIcons();
+  refreshIcons();
 }
 
 function toggleVendorDeleteMode() {
   vendorDeleteMode = !vendorDeleteMode;
-  const tbody = document.getElementById('invoices-body');
-  const bar = document.getElementById('vendor-actions');
-
   if (vendorDeleteMode && vendors.length === 0) {
     vendorDeleteMode = false;
     return;
   }
-
   if (vendorDeleteMode) {
-    // Add checkbox to each vendor row
-    tbody.querySelectorAll('tr').forEach(tr => {
-      const td = document.createElement('td');
-      td.className = 'emp-check-cell';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'emp-check';
-      cb.dataset.vendor = tr.querySelector('td').textContent;
-      td.appendChild(cb);
-      tr.insertBefore(td, tr.firstChild);
+    enterDeleteCheckboxMode({
+      tableId: 'invoices-table',
+      bodyId: 'invoices-body',
+      headRowId: 'invoices-head-row',
+      totRowSelector: '#invoices-totals-row',
+      dataAttr: 'vendor',
+      actionsId: 'vendor-actions',
+      deleteLabel: t('deleteVendors'),
+      onCancel: exitVendorDeleteMode,
+      onConfirm: confirmDeleteVendors,
     });
-    // Add checkbox header
-    const headRow = document.getElementById('invoices-head-row');
-    const th = document.createElement('th');
-    th.className = 'emp-check-cell';
-    headRow.insertBefore(th, headRow.firstChild);
-    // Add empty cell in totals row
-    const totRow = document.getElementById('invoices-totals-row');
-    const td = document.createElement('td');
-    td.className = 'emp-check-cell';
-    totRow.insertBefore(td, totRow.firstChild);
-
-    // Show confirm-delete button
-    bar.innerHTML = `
-      <button class="btn-emp btn-emp-cancel" id="btn-vdel-cancel">
-        <span>${t('cancel')}</span>
-      </button>
-      <button class="btn-emp btn-emp-confirm-del" id="btn-vdel-confirm">
-        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-        <span>${t('deleteVendors')}</span>
-      </button>
-    `;
-    document.getElementById('btn-vdel-cancel').addEventListener('click', exitVendorDeleteMode);
-    document.getElementById('btn-vdel-confirm').addEventListener('click', confirmDeleteVendors);
-    lucide.createIcons();
   } else {
     exitVendorDeleteMode();
   }
@@ -1239,16 +1240,12 @@ function toggleVendorDeleteMode() {
 
 function exitVendorDeleteMode() {
   vendorDeleteMode = false;
-  document.querySelectorAll('#invoices-table .emp-check-cell').forEach(el => el.remove());
-  renderVendorActions();
+  exitDeleteCheckboxMode('invoices-table', renderVendorActions);
 }
 
 function confirmDeleteVendors() {
-  const checked = Array.from(document.querySelectorAll('#invoices-body .emp-check:checked'));
-  if (checked.length === 0) return;
-  const names = checked.map(cb => cb.dataset.vendor);
-  const msg = t('confirmDeleteNames').replace('{names}', names.join(', '));
-  if (!confirm(msg)) return;
+  const names = collectCheckedDeleteNames('#invoices-body', 'vendor');
+  if (!names) return;
   saveCurrentWeek();
   vendors = vendors.filter(v => !names.includes(v));
   vendorDeleteMode = false;
@@ -1290,23 +1287,6 @@ function addVendor() {
   updateNotesCounter();
 }
 
-function removeVendor(v) {
-  saveCurrentWeek();
-  vendors = vendors.filter(x => x !== v);
-  const data = loadWeekData(document.getElementById('week-start').value);
-  buildInvoicesTable();
-  if (data) {
-    Object.entries(data).forEach(([k, val]) => {
-      const el = qsel(k);
-      if (el) el.value = val;
-    });
-  }
-  updateInvoicesTotals();
-  syncVendorPaidToggles();
-  saveCurrentWeek();
-  updateNotesCounter();
-}
-
 /* ═══════════════════════════════════════════
    CASH EXPENSES (dynamic expense items)
 ═══════════════════════════════════════════ */
@@ -1328,15 +1308,16 @@ function buildExpensesTable() {
   tbody.innerHTML = '';
   cashExpenses.forEach(ex => {
     const tr = document.createElement('tr');
-    let row = `<td class="row-label">${ex}</td>`;
+    const eEx = escapeHtml(ex);
+    let row = `<td class="row-label">${eEx}</td>`;
     DAYS().forEach((_, i) => {
       row += `<td><input class="inp" type="number" inputmode="decimal" min="0" step="0.01"
         placeholder="0.00"
-        data-key="exp_${ex}_${i}"
-        data-expense="${ex}"
+        data-key="exp_${eEx}_${i}"
+        data-expense="${eEx}"
         data-day="${i}" /></td>`;
     });
-    row += `<td class="tot-cell" id="extot-${ex}">$0.00</td>`;
+    row += `<td class="tot-cell" id="extot-${eEx}">$0.00</td>`;
     tr.innerHTML = row;
     tbody.appendChild(tr);
   });
@@ -1422,55 +1403,27 @@ function renderExpenseActions() {
   `;
   document.getElementById('btn-add-expense').addEventListener('click', addExpense);
   document.getElementById('btn-del-expense-mode').addEventListener('click', toggleExpenseDeleteMode);
-  lucide.createIcons();
+  refreshIcons();
 }
 
 function toggleExpenseDeleteMode() {
   expenseDeleteMode = !expenseDeleteMode;
-  const tbody = document.getElementById('expenses-body');
-  const bar = document.getElementById('expense-actions');
-
   if (expenseDeleteMode && cashExpenses.length === 0) {
     expenseDeleteMode = false;
     return;
   }
-
   if (expenseDeleteMode) {
-    // Add checkbox to each expense row
-    tbody.querySelectorAll('tr').forEach(tr => {
-      const td = document.createElement('td');
-      td.className = 'emp-check-cell';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'emp-check';
-      cb.dataset.expense = tr.querySelector('td').textContent;
-      td.appendChild(cb);
-      tr.insertBefore(td, tr.firstChild);
+    enterDeleteCheckboxMode({
+      tableId: 'expenses-table',
+      bodyId: 'expenses-body',
+      headRowId: 'expenses-head-row',
+      totRowSelector: '#expenses-totals-row',
+      dataAttr: 'expense',
+      actionsId: 'expense-actions',
+      deleteLabel: t('deleteExpenses'),
+      onCancel: exitExpenseDeleteMode,
+      onConfirm: confirmDeleteExpenses,
     });
-    // Add checkbox header
-    const headRow = document.getElementById('expenses-head-row');
-    const th = document.createElement('th');
-    th.className = 'emp-check-cell';
-    headRow.insertBefore(th, headRow.firstChild);
-    // Add empty cell in totals row
-    const totRow = document.getElementById('expenses-totals-row');
-    const td = document.createElement('td');
-    td.className = 'emp-check-cell';
-    totRow.insertBefore(td, totRow.firstChild);
-
-    // Show confirm-delete button
-    bar.innerHTML = `
-      <button class="btn-emp btn-emp-cancel" id="btn-edel-cancel">
-        <span>${t('cancel')}</span>
-      </button>
-      <button class="btn-emp btn-emp-confirm-del" id="btn-edel-confirm">
-        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-        <span>${t('deleteExpenses')}</span>
-      </button>
-    `;
-    document.getElementById('btn-edel-cancel').addEventListener('click', exitExpenseDeleteMode);
-    document.getElementById('btn-edel-confirm').addEventListener('click', confirmDeleteExpenses);
-    lucide.createIcons();
   } else {
     exitExpenseDeleteMode();
   }
@@ -1478,16 +1431,12 @@ function toggleExpenseDeleteMode() {
 
 function exitExpenseDeleteMode() {
   expenseDeleteMode = false;
-  document.querySelectorAll('#expenses-table .emp-check-cell').forEach(el => el.remove());
-  renderExpenseActions();
+  exitDeleteCheckboxMode('expenses-table', renderExpenseActions);
 }
 
 function confirmDeleteExpenses() {
-  const checked = Array.from(document.querySelectorAll('#expenses-body .emp-check:checked'));
-  if (checked.length === 0) return;
-  const names = checked.map(cb => cb.dataset.expense);
-  const msg = t('confirmDeleteNames').replace('{names}', names.join(', '));
-  if (!confirm(msg)) return;
+  const names = collectCheckedDeleteNames('#expenses-body', 'expense');
+  if (!names) return;
   cashExpenses = cashExpenses.filter(ex => !names.includes(ex));
   expenseDeleteMode = false;
   rebuildExpensesTablePreserveValues();
@@ -1502,13 +1451,6 @@ function addExpense() {
   if (!isNameSafe(trimmed)) return;
   if (cashExpenses.includes(trimmed)) return;
   cashExpenses.push(trimmed);
-  rebuildExpensesTablePreserveValues();
-  saveCurrentWeek();
-  updateNotesCounter();
-}
-
-function removeExpense(ex) {
-  cashExpenses = cashExpenses.filter(x => x !== ex);
   rebuildExpensesTablePreserveValues();
   saveCurrentWeek();
   updateNotesCounter();
@@ -1644,7 +1586,10 @@ function editStoreName() {
 /* ═══════════════════════════════════════════
    TOTALS
 ═══════════════════════════════════════════ */
-function fmt(n) { return '$' + n.toFixed(2); }
+function fmt(n) {
+  const v = Math.abs(n) < 0.005 ? 0 : n; // avoid "-$0.00"
+  return (v < 0 ? '-$' : '$') + Math.abs(v).toFixed(2);
+}
 
 function updateSalesTotals() {
   // Row totals (each source across all days)
@@ -1674,26 +1619,23 @@ function updateSalesTotals() {
   if (gt) gt.textContent = fmt(grand);
 }
 
-function updateHoursTotals() {
-  // Salary total
-  let salarySum = 0;
-  employees.forEach(emp => {
-    const el = qsel(`sal_${emp}`);
-    salarySum += el ? (parseFloat(el.value) || 0) : 0;
-  });
-  const salTd = document.getElementById('htot-salary');
-  if (salTd) salTd.textContent = fmt(salarySum);
+/* Hours display: whole numbers as-is, otherwise one decimal (7.5) */
+function fmtHours(n) { return n % 1 === 0 ? String(n) : n.toFixed(1); }
 
-  // Per-employee total hours
+function updateHoursTotals() {
+  let grand = 0;
   employees.forEach(emp => {
     let empSum = 0;
     DAYS().forEach((_, i) => {
       const el = qsel(`h_${emp}_${i}`);
       empSum += el ? (parseFloat(el.value) || 0) : 0;
     });
+    grand += empSum;
     const td = document.getElementById(`etot-${CSS.escape(emp)}`);
-    if (td) td.textContent = empSum % 1 === 0 ? empSum : empSum.toFixed(1);
+    if (td) td.textContent = fmtHours(empSum);
   });
+  const gt = document.getElementById('htot-hours');
+  if (gt) gt.textContent = fmtHours(grand);
 }
 
 /* ═══════════════════════════════════════════
@@ -1707,7 +1649,7 @@ function byteLen(str) {
 
 /* Encode JSON string to base64 for QR (pure ASCII, no multi-byte issues) */
 function toQRText(str) {
-  return btoa(unescape(encodeURIComponent(str)));
+  return utf8ToBase64(str);
 }
 
 /* Decode QR text back to JSON string (handles both base64 and raw legacy formats) */
@@ -1716,10 +1658,25 @@ function fromQRText(str) {
   if (str.charAt(0) === '{') return str;
   // Otherwise assume base64
   try {
-    return decodeURIComponent(escape(atob(str)));
+    return base64ToUtf8(str);
   } catch(e) {
     return str; // fallback
   }
+}
+
+/* Pixel size for a QR code so every module is drawn as a whole number of
+   pixels (4 px, or 3 px for the largest versions). QRCode.js rounds module
+   edges to pixels, so at the old fixed 180 px a dense code (up to 177 modules)
+   came out at ~1 px per module and could not be read back once saved. */
+function qrPixelSize(text) {
+  let modules = 0;
+  try {
+    const probe = new QRCode(document.createElement('div'), { text, width: 1, height: 1, correctLevel: QRCode.CorrectLevel.L });
+    modules = probe._oQRCode ? probe._oQRCode.getModuleCount() : 0;
+  } catch (e) { /* fall through to the fallback size */ }
+  if (!modules) return QR_FALLBACK_PX;
+  const perModule = modules * 4 <= QR_MAX_PX ? 4 : 3;
+  return modules * perModule;
 }
 
 /* Max JSON bytes that fit in QR after base64 encoding */
@@ -1743,9 +1700,6 @@ function collectDataBase() {
     });
   });
   employees.forEach(emp => {
-    const salEl = qsel(`sal_${emp}`);
-    const salV = salEl ? (parseFloat(salEl.value) || 0) : 0;
-    if (salV) out.sal = out.sal || {}, out.sal[emp] = salV;
     DAYS().forEach((_, i) => {
       const el = qsel(`h_${emp}_${i}`);
       const v = el ? (parseFloat(el.value) || 0) : 0;
@@ -1783,8 +1737,7 @@ function getNotesRemaining() {
   const { baseSize } = collectDataBase();
   // Account for the ',"n":"..."' wrapper (~7 bytes overhead)
   const overhead = 7;
-  const available = maxJsonBytes() - baseSize - overhead;
-  return Math.max(0, available);
+  return maxJsonBytes() - baseSize - overhead; // negative when the data alone is over the limit
 }
 
 /* Update the notes character counter */
@@ -1869,13 +1822,13 @@ async function generateSnapshot() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i data-lucide="camera" style="width:18px;height:18px;"></i> <span data-i18n="generateSnapshot">${t('generateSnapshot')}</span>`;
-    lucide.createIcons();
+    refreshIcons();
   }
 }
 
 function encodeWeeklyDataBase64() {
   const jsonStr = collectData();
-  return btoa(unescape(encodeURIComponent(jsonStr)));
+  return utf8ToBase64(jsonStr);
 }
 
 /* ── PDF Unicode Font Loader (CJK + Latin) ── */
@@ -1922,8 +1875,12 @@ async function loadPDFUnicodeFont(doc) {
   return null;
 }
 
-const _CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/;
-function _hasCJK(s) { return _CJK_RE.test(s); }
+/* jsPDF's built-in Helvetica covers Latin-1 (all Spanish accents) plus the
+   common typographic punctuation listed below. Anything else (CJK, emoji, …)
+   needs the embedded Unicode font, which is a large download — so it is only
+   fetched when the text to be printed actually requires it. */
+const _NEEDS_UNICODE_RE = /[^\u0000-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac\u2122]/;
+function needsUnicodeFont(text) { return _NEEDS_UNICODE_RE.test(text); }
 
 async function generatePDFSnapshot() {
   const defaults = [I18N.en.storeName, I18N.zh.storeName, I18N.es.storeName];
@@ -1944,16 +1901,19 @@ async function generatePDFSnapshot() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
-    // Detect CJK in data that will go into the PDF
-    const _pdfText = [storeName,
+    // Everything that will be drawn: user data plus the UI labels in the current language
+    const pdfDates = getWeekDates();
+    const pdfLabels = ['weekOf', 'dailySales', 'salesSource', 'totals', 'cohBeforeCalc', 'startingCash',
+      'invoices', 'vendor', 'cashExpenses', 'expense', 'cashOnHand', 'employeeHours', 'employee',
+      'totalHrs', 'notes'].map(k => t(k)).concat(t('daysShort'));
+    const pdfText = [storeName,
       ...salesSources, ...vendors, ...employees, ...cashExpenses,
       (document.getElementById('week-notes') || {}).value || '',
-      t('weekOf'), t('dailySales'), t('invoices'),
+      formatDate(pdfDates[0]), formatDate(pdfDates[6]),
+      ...pdfLabels,
     ].join('');
-    const _needsUni = currentLang !== 'en' || _hasCJK(_pdfText);
 
-    // Load Unicode font for CJK / accented characters
-    if (_needsUni) {
+    if (needsUnicodeFont(pdfText)) {
       const uf = await loadPDFUnicodeFont(doc);
       if (uf) {
         const _sf = doc.setFont.bind(doc);
@@ -2230,10 +2190,22 @@ async function generatePDFSnapshot() {
           sum += v;
           row.push(v ? String(v) : '0');
         });
-        row.push(sum % 1 === 0 ? String(sum) : sum.toFixed(1));
+        row.push(fmtHours(sum));
         rows.push(row);
       });
-      drawTable(cols, rows, { bodySize: 7.2 });
+      const totals = [t('totals')];
+      let grand = 0;
+      DAYS().forEach((_, i) => {
+        let dayTotal = 0;
+        employees.forEach(emp => {
+          dayTotal += parseFloat((qsel(`h_${emp}_${i}`) || {}).value) || 0;
+        });
+        grand += dayTotal;
+        totals.push(fmtHours(dayTotal));
+      });
+      totals.push(fmtHours(grand));
+      rows.push(totals);
+      drawTable(cols, rows, { bodySize: 7.2, totalRows: [rows.length - 1] });
     }
 
     // Notes
@@ -2298,7 +2270,7 @@ async function generatePDFSnapshot() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i data-lucide="file-text" style="width:18px;height:18px;"></i> <span data-i18n="generatePDF">${t('generatePDF')}</span>`;
-    lucide.createIcons();
+    refreshIcons();
   }
 }
 
@@ -2335,7 +2307,7 @@ function buildScreenshotClone(qrText, opts) {
   wrap.style.cssText = [
     'position:absolute','left:-9999px','top:0',
     'background:#ffffff','padding:24px',
-    'border-radius:16px','min-width:680px',
+    'border-radius:16px','width:680px',
     'font-family:Segoe UI,system-ui,sans-serif',
     'color:#1e1e2f'
   ].join(';');
@@ -2361,8 +2333,6 @@ function buildScreenshotClone(qrText, opts) {
     span.style.cssText = 'display:block;text-align:right;font-size:13px;padding:4px;color:#1e1e2f;';
     inp.parentNode.replaceChild(span, inp);
   });
-  // Remove auto-fill button from clone (no longer in sales table, but just in case)
-  salesClone.querySelectorAll('.btn-auto-fill-inline, .btn-auto-fill-sm').forEach(btn => btn.remove());
 
   // Cash on Hand before calculation — single clean text row
   const cohStartEl = document.getElementById('coh-start');
@@ -2415,21 +2385,14 @@ function buildScreenshotClone(qrText, opts) {
     const inputs = tr.querySelectorAll('input');
     let hasData = false;
     inputs.forEach(inp => {
-      if ((inp.value && parseFloat(inp.value) !== 0) || (inp.dataset.salary && parseFloat(inp.value) !== 0)) {
-        hasData = true;
-      }
+      if (inp.value && parseFloat(inp.value) !== 0) hasData = true;
     });
     if (!hasData && inputs.length > 0) tr.remove();
   });
   // Replace remaining inputs with spans
   hoursClone.querySelectorAll('input').forEach(inp => {
     const span = document.createElement('span');
-    if (inp.dataset.salary) {
-      const v = parseFloat(inp.value);
-      span.textContent = isNaN(v) || v === 0 ? '–' : '$' + v.toFixed(2);
-    } else {
-      span.textContent = inp.value || '–';
-    }
+    span.textContent = inp.value || '–';
     span.style.cssText = 'display:block;text-align:right;font-size:13px;padding:4px;color:#1e1e2f;';
     inp.parentNode.replaceChild(span, inp);
   });
@@ -2522,7 +2485,7 @@ function buildScreenshotClone(qrText, opts) {
     wrap.appendChild(notesTitle);
 
     const notesBox = document.createElement('div');
-    notesBox.style.cssText = 'font-size:13px;color:#1e1e2f;line-height:1.5;padding:10px 12px;background:#f4f5f7;border-radius:8px;white-space:pre-wrap;';
+    notesBox.style.cssText = 'font-size:13px;color:#1e1e2f;line-height:1.5;padding:10px 12px;background:#f4f5f7;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;';
     notesBox.textContent = notesEl.value.trim();
     wrap.appendChild(notesBox);
   }
@@ -2538,29 +2501,26 @@ function buildScreenshotClone(qrText, opts) {
       'padding-top:16px',
       'border-top:1px solid #d4d8e1',
       'display:flex',
+      'flex-direction:column',
       'align-items:center',
-      'gap:16px'
+      'gap:10px'
     ].join(';');
 
-    const qrBox = document.createElement('div');
-    qrBox.style.cssText = 'background:#fff;padding:4px;border-radius:6px;border:1px solid #d4d8e1;line-height:0;flex-shrink:0;';
-
     const qrLabel = document.createElement('div');
-    qrLabel.style.cssText = 'font-size:11px;color:#6b7194;line-height:1.4;';
+    qrLabel.style.cssText = 'font-size:11px;color:#6b7194;line-height:1.4;text-align:center;';
     qrLabel.innerHTML = `<strong style="font-size:12px;color:#1e1e2f;">${tEn('scanToRestore')}</strong><br>` +
-      storeName + ' – ' + formatDate(dates[0]) + ' – ' + formatDate(dates[6]);
+      escapeHtml(storeName) + ' – ' + formatDate(dates[0]) + ' – ' + formatDate(dates[6]);
 
-    qrSection.appendChild(qrBox);
+    const qrBox = document.createElement('div');
+    qrBox.style.cssText = 'background:#fff;padding:8px;border-radius:6px;border:1px solid #d4d8e1;line-height:0;flex-shrink:0;';
+
     qrSection.appendChild(qrLabel);
+    qrSection.appendChild(qrBox);
     wrap.appendChild(qrSection);
 
     // QR data is base64-encoded (pure ASCII, no multi-byte issues)
-    new QRCode(qrBox, {
-      text: qrText,
-      width: QR_SIZE,
-      height: QR_SIZE,
-      correctLevel: QRCode.CorrectLevel.L
-    });
+    const px = qrPixelSize(qrText);
+    new QRCode(qrBox, { text: qrText, width: px, height: px, correctLevel: QRCode.CorrectLevel.L });
   }
 
   return wrap;
@@ -2612,13 +2572,18 @@ function styleCloneTable(tbl) {
 ═══════════════════════════════════════════ */
 function saveQRDataToStorage(jsonStr) {
   const data = JSON.parse(jsonStr);
-  if (!data.w) return false;
+  // The week date becomes a storage key and is shown in the history list,
+  // so only accept a real YYYY-MM-DD date.
+  const w = String(data.w || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(w)) return false;
+  const wDate = new Date(w + 'T00:00:00');
+  if (isNaN(wDate.getTime()) || isoDate(wDate) !== w) return false;
   // Sanitize names from QR to prevent XSS
-  const sanitize = str => String(str).replace(/[<>"&|]/g, '');
+  const sanitize = str => String(str).replace(/[<>"|]/g, '');
   const sanitizeList = arr => (Array.isArray(arr) ? arr.map(sanitize) : []);
 
   const s = {};
-  s['__weekStart'] = data.w;
+  s['__weekStart'] = w;
   if (data.e) s['__employees'] = sanitizeList(data.e);
   if (data.v) s['__vendors'] = sanitizeList(data.v);
   if (data.cx) s['__cashExpenses'] = sanitizeList(data.cx);
@@ -2627,11 +2592,6 @@ function saveQRDataToStorage(jsonStr) {
   if (data.s) {
     Object.entries(data.s).forEach(([k, v]) => {
       s[`s_${k}`] = v;
-    });
-  }
-  if (data.sal) {
-    Object.entries(data.sal).forEach(([emp, v]) => {
-      s[`sal_${emp}`] = v;
     });
   }
   if (data.n) {
@@ -2661,7 +2621,7 @@ function saveQRDataToStorage(jsonStr) {
       s[`exp_${ex}_${day}`] = v;
     });
   }
-  localStorage.setItem(weekKey(data.w), JSON.stringify(s));
+  localStorage.setItem(weekKey(w), JSON.stringify(s));
   return true;
 }
 
@@ -2828,7 +2788,7 @@ async function decodeDataFromPDFFile(file) {
   if (!b64) return null;
 
   try {
-    return decodeURIComponent(escape(atob(b64)));
+    return base64ToUtf8(b64);
   } catch {
     return null;
   }
@@ -2892,7 +2852,7 @@ function renderHistory() {
         <div class="history-item-title">${t('weekOf')} ${formatDate(base)} – ${formatDate(end)}</div>
         <div class="history-item-sub">${t('totalSalesLabel')}: ${fmt(totalSales)}</div>
       </div>
-      <button class="history-item-delete" data-week="${dateStr}" title="Delete" aria-label="Delete">&times;</button>
+      <button class="history-item-delete" title="Delete" aria-label="Delete">&times;</button>
     `;
 
     // Click to load week (but not on the delete button)
@@ -2910,7 +2870,7 @@ function renderHistory() {
     list.appendChild(item);
   });
 
-  lucide.createIcons();
+  refreshIcons();
 }
 
 function calcWeekTotalSales(data) {
@@ -2983,7 +2943,7 @@ function applyI18n() {
     const val = t(key);
     if (val) el.placeholder = val;
   });
-  document.title = `EasyDailyReport – ${t('subtitle')}`;
+  document.title = t('subtitle');
 }
 
 function setLanguage(lang) {
@@ -3018,25 +2978,28 @@ function setLanguage(lang) {
   updateCashOnHand();
   syncVendorPaidToggles();
   saveState();
-  lucide.createIcons();
+  refreshIcons();
 }
 
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
-function init() {
+function initWeekInputDefaults() {
   const mon = thisMonday();
   const weekInput = document.getElementById('week-start');
   weekInput.value = isoDate(mon);
   // Restrict picker to Mondays: step=7 from a known Monday
   weekInput.setAttribute('step', '7');
   weekInput.setAttribute('min', '2024-01-01'); // a Monday
+}
 
-  // Load saved state (may contain language preference)
+/* Hydrate module-level state from meta + most recent saved week. Returns the saved week data (or {}). */
+function loadInitialState() {
   const meta = getMeta();
   if (meta.lang) currentLang = meta.lang;
   if (meta.employees && Array.isArray(meta.employees)) employees = meta.employees;
   if (meta.vendors && Array.isArray(meta.vendors)) vendors = meta.vendors;
+  if (Array.isArray(meta.cashExpenses)) cashExpenses = meta.cashExpenses;
   if (meta.salesSources && Array.isArray(meta.salesSources)) {
     salesSources = meta.salesSources;
   } else {
@@ -3048,6 +3011,7 @@ function init() {
   });
   if (meta.storeName) storeName = meta.storeName;
   document.getElementById('store-name').textContent = storeName;
+
   const saved = loadState();
   // Use employees/vendors/salesSources from saved week data if present
   if (saved && saved['__employees'] && Array.isArray(saved['__employees'])) employees = saved['__employees'];
@@ -3058,33 +3022,28 @@ function init() {
       if (!salesSources.includes(f)) salesSources.unshift(f);
     });
   }
+  return saved || {};
+}
 
-  // Build tables
+function buildAllTables() {
   buildSalesTable();
   buildCohBeforeTable();
   buildHoursTable();
   buildInvoicesTable();
   buildExpensesTable();
+}
 
-  // Apply language
+function applyLanguageUI() {
   document.documentElement.lang = currentLang;
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.lang === currentLang);
   });
   applyI18n();
+}
 
-  // Load saved state (may override week-start)
-  if (saved && Object.keys(saved).length) applyState(saved);
-  else updateDateLabels();
-
-  // Initialize notes counter
-  updateNotesCounter();
-
-  // Week change — save current week under OLD date, then load new week or start fresh
-  currentWeekDate = document.getElementById('week-start').value;
-
+/* Wire up the week-start picker: snap to Monday, save outgoing week, load new one. */
+function wireWeekStartListener() {
   document.getElementById('week-start').addEventListener('change', () => {
-    // Snap to Monday if a non-Monday was somehow selected
     const picked = document.getElementById('week-start').value;
     if (picked) {
       const d = new Date(picked + 'T00:00:00');
@@ -3096,7 +3055,6 @@ function init() {
       }
     }
 
-    // Save the old week under the previous date
     if (currentWeekDate) {
       saveCurrentWeek(currentWeekDate);
     }
@@ -3104,26 +3062,16 @@ function init() {
     const newDate = document.getElementById('week-start').value;
     currentWeekDate = newDate;
     const existing = loadWeekData(newDate);
-    if (existing) {
-      applyState(existing);
-    } else {
-      salesSources = DEFAULT_SALES_SOURCES.slice();
-      vendors = [];
-      cashExpenses = [];
-      employees = [];
-      buildSalesTable();
-      buildInvoicesTable();
-      buildExpensesTable();
-      buildHoursTable();
-      clearForm();
-      updateDateLabels();
-    }
+    if (existing) applyState(existing);
+    else startBlankWeek(newDate);
     saveMeta({ lastWeek: newDate });
     renderHistory();
     updateNotesCounter();
   });
+}
 
-  // Auto-save + totals on input
+/* Auto-save + recompute totals whenever any [data-key] input changes. */
+function wireInputAutoSave() {
   document.addEventListener('input', e => {
     // Enforce 2 decimal places on monetary inputs (step="0.01")
     if (e.target.type === 'number' && e.target.step === '0.01' && e.target.value !== '') {
@@ -3136,7 +3084,7 @@ function init() {
       saveState();
       const col = e.target.dataset.col;
       if (col) { updateSalesTotals(); updateCashOnHand(); }
-      if (e.target.dataset.emp || e.target.dataset.salary) updateHoursTotals();
+      if (e.target.dataset.emp) updateHoursTotals();
       if (e.target.dataset.vendor) updateInvoicesTotals();
       if (e.target.dataset.expense) { updateExpensesTotals(); updateCashOnHand(); }
       // Recalc COH when the day-1 starting cash input changes
@@ -3144,39 +3092,33 @@ function init() {
       updateNotesCounter();
     }
   });
+}
 
-  // Language switcher
+function wireToolbarButtons() {
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
   });
 
-  // Buttons
   document.getElementById('btn-snapshot').addEventListener('click', generateSnapshot);
   document.getElementById('btn-pdf').addEventListener('click', generatePDFSnapshot);
 
-  // History
   document.getElementById('btn-history').addEventListener('click', toggleHistoryPanel);
   document.getElementById('btn-history-close').addEventListener('click', toggleHistoryPanel);
   document.getElementById('sidebar-overlay').addEventListener('click', toggleHistoryPanel);
   document.getElementById('btn-delete-oldest').addEventListener('click', deleteOldest10Weeks);
 
-  // Bulk upload
   document.getElementById('btn-bulk-upload').addEventListener('click', triggerBulkUpload);
   document.getElementById('bulk-file-input').addEventListener('change', handleBulkFiles);
 
-  // Store name edit
   document.getElementById('btn-edit-name').addEventListener('click', editStoreName);
 
-  // Cash on Hand auto-fill button (inside the sales table, re-created on rebuild)
-  // Use delegation so it works after language switch / table rebuild
+  // Cash on Hand auto-fill button (re-created on table rebuild) — use delegation
   document.addEventListener('click', e => {
     if (e.target.closest('#btn-auto-fill-coh')) autoFillCashOnHand();
   });
 
-  // Export CSV
   document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
 
-  // Info popup
   document.getElementById('btn-info').addEventListener('click', (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -3184,9 +3126,28 @@ function init() {
   });
   document.getElementById('btn-info-close').addEventListener('click', toggleInfoPopup);
   document.getElementById('info-overlay').addEventListener('click', toggleInfoPopup);
+}
 
-  // Lucide icons
-  lucide.createIcons();
+function init() {
+  initWeekInputDefaults();
+  const saved = loadInitialState();
+
+  buildAllTables();
+  applyLanguageUI();
+
+  // Apply saved week data (may override week-start input)
+  if (Object.keys(saved).length) applyState(saved);
+  else updateDateLabels();
+
+  updateNotesCounter();
+
+  currentWeekDate = document.getElementById('week-start').value;
+
+  wireWeekStartListener();
+  wireInputAutoSave();
+  wireToolbarButtons();
+
+  refreshIcons();
 }
 
 function toggleInfoPopup() {
@@ -3251,6 +3212,7 @@ function exportCSV() {
   rows.push(['Totals', ...dayTots, grandTotal.toFixed(2)].join(','));
 
   // Cash on Hand before calculation row (inside DAILY SALES)
+  let csvCohAfterVals = null;
   {
     let cohBefore = cohVal;
     const cohBeforeVals = [];
@@ -3270,9 +3232,7 @@ function exportCSV() {
       cohBefore = cohAfter;
     });
     rows.push(['Cash on Hand before calculation', ...cohBeforeVals, ''].join(','));
-    // We'll output Cash on Hand row later in expenses section
-    // Store cohAfterVals for later
-    var _csvCohAfterVals = cohAfterVals;
+    csvCohAfterVals = cohAfterVals; // printed under the expenses section below
   }
 
   // --- Invoices ---
@@ -3314,21 +3274,22 @@ function exportCSV() {
       rows.push([csvEscape(ex), ...vals, exTotal.toFixed(2)].join(','));
     });
     // Cash on Hand row under expenses
-    if (_csvCohAfterVals) {
-      rows.push(['Cash on Hand', ..._csvCohAfterVals, ''].join(','));
+    if (csvCohAfterVals) {
+      rows.push(['Cash on Hand', ...csvCohAfterVals, ''].join(','));
     }
-  } else if (_csvCohAfterVals) {
+  } else if (csvCohAfterVals) {
     // Even if no named expenses, output the COH row
     rows.push('');
     rows.push('CASH ON HAND');
-    rows.push(['Cash on Hand', ..._csvCohAfterVals, ''].join(','));
+    rows.push(['Cash on Hand', ...csvCohAfterVals, ''].join(','));
   }
 
   // --- Hours ---
   if (employees.length > 0) {
     rows.push('');
     rows.push('EMPLOYEE HOURS');
-    rows.push(['Employee', ...enDays, 'Total Hrs', 'Salary'].map(csvEscape).join(','));
+    rows.push(['Employee', ...enDays, 'Total Hrs'].map(csvEscape).join(','));
+    let hoursGrand = 0;
     employees.forEach(emp => {
       let empTotal = 0;
       const hrs = enDays.map((_, i) => {
@@ -3337,10 +3298,10 @@ function exportCSV() {
         empTotal += v;
         return v;
       });
-      const salEl = qsel(`sal_${emp}`);
-      const sal = salEl ? (parseFloat(salEl.value) || 0) : 0;
-      rows.push([csvEscape(emp), ...hrs, empTotal % 1 === 0 ? empTotal : empTotal.toFixed(1), sal.toFixed(2)].join(','));
+      hoursGrand += empTotal;
+      rows.push([csvEscape(emp), ...hrs, fmtHours(empTotal)].join(','));
     });
+    rows.push(['Total Hrs', ...enDays.map(() => ''), fmtHours(hoursGrand)].join(','));
   }
 
   // --- Notes ---
@@ -3370,7 +3331,8 @@ function exportCSV() {
   }, 1500);
   showToast(t('csvSaved'));
   } catch(err) {
-    alert('CSV Export Error:\n\n' + err.message + '\n\nStack: ' + err.stack);
+    console.error('CSV Export Error:', err);
+    showToast('⚠ CSV Export Error: ' + (err && err.message ? err.message : err));
   }
 }
 
