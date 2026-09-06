@@ -23,6 +23,10 @@ Open `index.html` in a browser, or use the PowerShell helper, which starts a no-
 .\start-website.ps1 -Public
 ```
 
+## Versioning
+
+The version shown in the page footer is hard-coded in `index.html` and `inventory.html`, and the same string is appended as `?v=` to the CSS/JS links so browsers fetch fresh files after a deploy. To release, search both HTML files for the current version and replace every occurrence.
+
 ## Storage
 
 | Key                   | Holds                                                                 |

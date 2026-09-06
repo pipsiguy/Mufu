@@ -909,6 +909,18 @@ tbody tr td:last-child {
   background: #1a5c38;
 }
 
+/* ── Version footer ── */
+.app-footer {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding: 8px 0 20px;
+}
+
+.app-version {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Monthly Inventory nav button ── */
 .nav-bar {
   margin-bottom: 16px;

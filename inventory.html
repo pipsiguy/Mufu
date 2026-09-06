@@ -9,9 +9,9 @@
   <link rel="icon" type="image/png" href="images/logo.png" />
 
   <!-- Shared base styles -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=1.1.0" />
   <!-- Inventory-specific styles -->
-  <link rel="stylesheet" href="inventory.css" />
+  <link rel="stylesheet" href="inventory.css?v=1.1.0" />
 
   <!-- Lucide Icons -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
@@ -159,6 +159,9 @@
   </button>
 </div>
 
+<!-- Version (bump in both HTML files: footer + ?v= on the css/js links) -->
+<footer class="app-footer">Easy Daily Report <span class="app-version">v1.1.0</span></footer>
+
 <!-- ══════════════════════════════════════════
      Previous Months Sidebar
 ══════════════════════════════════════════ -->
@@ -183,7 +186,7 @@
 <div id="toast"></div>
 
 <!-- App logic -->
-<script src="inventory.js"></script>
+<script src="inventory.js?v=1.1.0"></script>
 
 </body>
 </html>
